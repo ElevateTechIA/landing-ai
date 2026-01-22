@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Services Grid Section</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white min-h-screen">
+<div class="relative flex h-auto min-h-screen w-full flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden">
+<!-- TopAppBar -->
+<div class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between sticky top-0 z-10 backdrop-blur-md bg-opacity-80">
+<div class="text-primary flex size-12 shrink-0 items-center justify-start">
+<span class="material-symbols-outlined text-2xl cursor-pointer">arrow_back_ios</span>
+</div>
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12 font-display">Services</h2>
+</div>
+<!-- Headline & Body Intro -->
+<div class="px-4 pt-8 pb-4">
+<h2 class="text-[#111318] dark:text-white tracking-tight text-[32px] font-bold leading-tight text-left pb-3 font-display">
+                Software &amp; AI Solutions
+            </h2>
+<p class="text-[#616f89] dark:text-gray-400 text-base font-normal leading-relaxed text-left max-w-md">
+                We build scalable digital products for modern startups and SMBs, focusing on performance and user-centric design.
+            </p>
+</div>
+<!-- Services Grid -->
+<div class="grid grid-cols-1 gap-4 p-4">
+<!-- Custom Software Card -->
+<div class="flex flex-col gap-4 rounded-xl border border-[#dbdfe6] dark:border-gray-800 bg-white dark:bg-[#1a212f] p-5 active:scale-[0.98] transition-all duration-200 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="text-primary bg-primary/10 p-3 rounded-lg">
+<span class="material-symbols-outlined text-[28px]">code</span>
+</div>
+<span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight font-display">Custom Software</h2>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal">
+                        Tailored end-to-end solutions built to address your unique business challenges and goals.
+                    </p>
+</div>
+</div>
+<!-- Web Apps Card -->
+<div class="flex flex-col gap-4 rounded-xl border border-[#dbdfe6] dark:border-gray-800 bg-white dark:bg-[#1a212f] p-5 active:scale-[0.98] transition-all duration-200 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="text-primary bg-primary/10 p-3 rounded-lg">
+<span class="material-symbols-outlined text-[28px]">devices</span>
+</div>
+<span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight font-display">Web Apps</h2>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal">
+                        Scalable, responsive web applications optimized for speed and seamless user experience.
+                    </p>
+</div>
+</div>
+<!-- Backend & APIs Card -->
+<div class="flex flex-col gap-4 rounded-xl border border-[#dbdfe6] dark:border-gray-800 bg-white dark:bg-[#1a212f] p-5 active:scale-[0.98] transition-all duration-200 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="text-primary bg-primary/10 p-3 rounded-lg">
+<span class="material-symbols-outlined text-[28px]">database</span>
+</div>
+<span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight font-display">Backend &amp; APIs</h2>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal">
+                        Robust server-side architectures and secure APIs designed to handle high-traffic demands.
+                    </p>
+</div>
+</div>
+<!-- AI Automation Card -->
+<div class="flex flex-col gap-4 rounded-xl border border-[#dbdfe6] dark:border-gray-800 bg-white dark:bg-[#1a212f] p-5 active:scale-[0.98] transition-all duration-200 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="text-primary bg-primary/10 p-3 rounded-lg">
+<span class="material-symbols-outlined text-[28px]">auto_awesome</span>
+</div>
+<span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight font-display">AI Automation</h2>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal">
+                        Boost operational efficiency with intelligent LLM workflows and automated processing.
+                    </p>
+</div>
+</div>
+<!-- System Integrations Card -->
+<div class="flex flex-col gap-4 rounded-xl border border-[#dbdfe6] dark:border-gray-800 bg-white dark:bg-[#1a212f] p-5 active:scale-[0.98] transition-all duration-200 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="text-primary bg-primary/10 p-3 rounded-lg">
+<span class="material-symbols-outlined text-[28px]">settings_input_component</span>
+</div>
+<span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+</div>
+<div class="flex flex-col gap-1">
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight font-display">System Integrations</h2>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal">
+                        Unify your tech stack by connecting disparate tools into a single, cohesive ecosystem.
+                    </p>
+</div>
+</div>
+</div>
+<!-- SingleButton Footer CTA -->
+<div class="flex px-4 py-8 mb-4">
+<button class="flex min-w-[84px] max-w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 px-6 flex-1 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] shadow-lg shadow-primary/25 active:scale-95 transition-transform duration-150">
+<span class="truncate font-display">Get a Free Consultation</span>
+</button>
+</div>
+<!-- Bottom Spacer for iOS Home Indicator -->
+<div class="h-8 bg-transparent"></div>
+</div>
+</body></html>
