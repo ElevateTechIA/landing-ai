@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(vercel:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git config:*)",
+      "Bash(GIT_AUTHOR_EMAIL=\"\" GIT_COMMITTER_EMAIL=\"\" vercel --prod --yes)",
+      "Bash(git commit:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(findstr:*)"
     ]
   }
 }

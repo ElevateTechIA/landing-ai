@@ -14,6 +14,8 @@ export default function AIVoiceCall() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
+  const audioPlaybackQueueRef = useRef<AudioBuffer[]>([]);
+  const isPlayingRef = useRef<boolean>(false);
 
   // Format call duration as MM:SS
   const formatDuration = (seconds: number) => {
@@ -32,7 +34,6 @@ export default function AIVoiceCall() {
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current);
       }
-      setCallDuration(0);
     }
 
     return () => {
@@ -41,6 +42,44 @@ export default function AIVoiceCall() {
       }
     };
   }, [isInCall]);
+
+  // Reset duration when call ends
+  useEffect(() => {
+    if (!isInCall) {
+      setCallDuration(0);
+    }
+  }, [isInCall]);
+
+  // Function to play audio chunks sequentially
+  const playNextAudioChunk = () => {
+    if (audioPlaybackQueueRef.current.length === 0) {
+      isPlayingRef.current = false;
+      return;
+    }
+
+    if (!audioContextRef.current) return;
+
+    isPlayingRef.current = true;
+    const audioBuffer = audioPlaybackQueueRef.current.shift()!;
+
+    const source = audioContextRef.current.createBufferSource();
+    source.buffer = audioBuffer;
+    
+    const gainNode = audioContextRef.current.createGain();
+    gainNode.gain.value = 1.0;
+    
+    source.connect(gainNode);
+    gainNode.connect(audioContextRef.current.destination);
+    
+    source.onended = () => {
+      console.log('Audio chunk finished, playing next...');
+      playNextAudioChunk();
+    };
+    
+    console.log('Playing audio chunk, duration:', audioBuffer.duration, 'seconds');
+    source.start();
+    audioQueueRef.current.push(source);
+  };
 
   const startCall = async () => {
     try {
@@ -77,19 +116,28 @@ export default function AIVoiceCall() {
         try {
           const data = JSON.parse(event.data);
           console.log('WebSocket message type:', data.type);
+          
+          // Log the entire message structure for debugging
+          if (data.type === 'audio') {
+            console.log('Full audio message:', JSON.stringify(data).substring(0, 200));
+            console.log('Message keys:', Object.keys(data));
+          }
 
           if (data.type === 'conversation_initiation_metadata') {
             console.log('Conversation ID:', data.conversation_id);
           } else if (data.type === 'audio') {
-            console.log('Audio message received. Has audio data:', !!data.audio, 'Audio length:', data.audio ? data.audio.length : 0);
+            // ElevenLabs sends audio in audio_event.audio_base_64
+            const audioData = data.audio_event?.audio_base_64;
+            console.log('Audio message received. Has audio data:', !!audioData, 'Audio length:', audioData ? audioData.length : 0);
             
-            if (!data.audio) {
-              console.warn('Audio message received but data.audio is empty');
+            if (!audioData) {
+              console.warn('Audio message received but audio_event.audio_base_64 is empty');
+              console.warn('Full data object:', data);
               return;
             }
             
             // Play audio from AI - ElevenLabs sends base64 encoded PCM16 audio
-            console.log('Processing audio chunk, base64 length:', data.audio.length);
+            console.log('Processing audio chunk, base64 length:', audioData.length);
             
             try {
               if (!audioContextRef.current) {
@@ -108,7 +156,7 @@ export default function AIVoiceCall() {
               }
 
               // Decode base64 to binary string
-              const binaryString = atob(data.audio);
+              const binaryString = atob(audioData);
               console.log('Decoded binary string length:', binaryString.length);
               
               // Convert binary string to Uint8Array
@@ -127,7 +175,7 @@ export default function AIVoiceCall() {
 
               console.log('Float32 samples:', float32.length, 'Duration:', float32.length / 16000, 'seconds');
 
-              // Create audio buffer and play
+              // Create audio buffer
               const audioBuffer = audioContextRef.current.createBuffer(
                 1, // mono
                 float32.length,
@@ -135,28 +183,14 @@ export default function AIVoiceCall() {
               );
               audioBuffer.getChannelData(0).set(float32);
 
-              const source = audioContextRef.current.createBufferSource();
-              source.buffer = audioBuffer;
-              
-              // Create gain node for volume control
-              const gainNode = audioContextRef.current.createGain();
-              gainNode.gain.value = 1.0; // Full volume
-              
-              source.connect(gainNode);
-              gainNode.connect(audioContextRef.current.destination);
-              
-              console.log('Starting audio playback, duration:', audioBuffer.duration, 'seconds');
-              source.start();
-              
-              // Track active sources
-              audioQueueRef.current.push(source);
-              source.onended = () => {
-                console.log('Audio chunk finished playing');
-                const index = audioQueueRef.current.indexOf(source);
-                if (index > -1) {
-                  audioQueueRef.current.splice(index, 1);
-                }
-              };
+              // Add to queue instead of playing immediately
+              audioPlaybackQueueRef.current.push(audioBuffer);
+              console.log('Added audio to queue. Queue length:', audioPlaybackQueueRef.current.length);
+
+              // Start playing if not already playing
+              if (!isPlayingRef.current) {
+                playNextAudioChunk();
+              }
             } catch (audioError) {
               console.error('Error processing audio:', audioError);
             }
@@ -180,9 +214,14 @@ export default function AIVoiceCall() {
       if (audioContextRef.current && stream) {
         const source = audioContextRef.current.createMediaStreamSource(stream);
         const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+        
+        // Create a silent gain node to keep processor active without feedback
+        const silentNode = audioContextRef.current.createGain();
+        silentNode.gain.value = 0; // Mute to prevent feedback
 
         source.connect(processor);
-        processor.connect(audioContextRef.current.destination);
+        processor.connect(silentNode);
+        silentNode.connect(audioContextRef.current.destination);
 
         processor.onaudioprocess = (e) => {
           if (ws.readyState === WebSocket.OPEN && !isMuted) {
@@ -192,9 +231,10 @@ export default function AIVoiceCall() {
               pcm16[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
             }
 
+            // ElevenLabs expects audio in user_audio_chunk format
+            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
             ws.send(JSON.stringify({
-              type: 'audio',
-              audio: btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)))
+              user_audio_chunk: base64Audio
             }));
           }
         };
@@ -217,6 +257,10 @@ export default function AIVoiceCall() {
       }
     });
     audioQueueRef.current = [];
+    
+    // Clear audio playback queue
+    audioPlaybackQueueRef.current = [];
+    isPlayingRef.current = false;
 
     // Close WebSocket
     if (wsRef.current) {

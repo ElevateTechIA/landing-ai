@@ -1,37 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import Chatbot from './Chatbot';
+import ChallengeChatbot from './ChallengeChatbot';
 
 export default function FinalCallToActionSection() {
   const { t } = useLanguage();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
-  });
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Aquí iría la lógica real para enviar el formulario
-    setSubmitted(true);
-
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', email: '', message: '' });
-    }, 3000);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
 
   return (
     <section className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
@@ -60,18 +33,62 @@ export default function FinalCallToActionSection() {
           <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed max-w-3xl mx-auto mb-3">
             {t('finalCta.description')}
           </p>
-          <p className="text-blue-600 font-medium text-sm sm:text-base">
-            {t('language') === 'es' 
-              ? '💬 Usa el chat para contarnos sobre tu proyecto - te ayudaremos a estructurar tu mensaje'
-              : '💬 Use the chat to tell us about your project - we will help you structure your message'
-            }
-          </p>
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 max-w-2xl mx-auto mb-6">
+            <p className="text-blue-800 font-semibold text-base sm:text-lg mb-2">
+              {t('language') === 'es' 
+                ? '🎯 Chat Interactivo Estructurado'
+                : '🎯 Structured Interactive Chat'
+              }
+            </p>
+            <p className="text-blue-700 text-sm sm:text-base">
+              {t('language') === 'es' 
+                ? 'Conversación guiada paso a paso para entender tu proyecto y agendar automáticamente una reunión por Zoom'
+                : 'Step-by-step guided conversation to understand your project and automatically schedule a Zoom meeting'
+              }
+            </p>
+          </div>
         </div>
 
-        {/* Integrated Chatbot */}
-        <div className="bg-white rounded-3xl p-4 sm:p-6 lg:p-8 shadow-2xl border border-gray-200">
+        {/* Challenge Chatbot */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200">
+          <ChallengeChatbot />
+        </div>
 
-          <Chatbot isEmbedded={true} />
+        {/* Benefits Below */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div className="bg-white rounded-xl p-4 shadow-md">
+            <div className="text-3xl mb-2">⚡</div>
+            <h4 className="font-semibold text-gray-800 mb-1">
+              {t('language') === 'es' ? 'Rápido y Eficiente' : 'Fast & Efficient'}
+            </h4>
+            <p className="text-sm text-gray-600">
+              {t('language') === 'es' 
+                ? 'Recopilamos toda la información necesaria en minutos'
+                : 'We collect all necessary information in minutes'}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-md">
+            <div className="text-3xl mb-2">📅</div>
+            <h4 className="font-semibold text-gray-800 mb-1">
+              {t('language') === 'es' ? 'Agendamiento Automático' : 'Automatic Scheduling'}
+            </h4>
+            <p className="text-sm text-gray-600">
+              {t('language') === 'es' 
+                ? 'Sistema inteligente de calendario sin cruces'
+                : 'Smart calendar system without conflicts'}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 shadow-md">
+            <div className="text-3xl mb-2">🎯</div>
+            <h4 className="font-semibold text-gray-800 mb-1">
+              {t('language') === 'es' ? 'Reuniones Preparadas' : 'Prepared Meetings'}
+            </h4>
+            <p className="text-sm text-gray-600">
+              {t('language') === 'es' 
+                ? 'Llegamos con claridad sobre tu proyecto'
+                : 'We arrive with clarity about your project'}
+            </p>
+          </div>
         </div>
       </div>
       </div>

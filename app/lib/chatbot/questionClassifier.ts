@@ -17,7 +17,10 @@ const ALLOWED_PATTERNS = {
   services: [
     'service', 'offer', 'provide', 'do you', 'can you', 'build',
     'develop', 'create', 'make', 'software', 'application', 'app',
-    'web', 'mobile', 'integration', 'api', 'backend', 'frontend'
+    'web', 'mobile', 'integration', 'api', 'backend', 'frontend',
+    // Spanish
+    'servicio', 'servicios', 'ofrecer', 'ofrecen', 'pueden', 'hacen',
+    'desarrollar', 'crear', 'hacer', 'aplicación', 'aplicaciones'
   ],
   process: [
     'process', 'how work', 'methodology', 'approach', 'timeline',
@@ -29,11 +32,17 @@ const ALLOWED_PATTERNS = {
   ],
   contact: [
     'contact', 'reach', 'email', 'phone', 'consultation', 'meeting',
-    'talk', 'discuss', 'get in touch', 'schedule', 'call'
+    'talk', 'discuss', 'get in touch', 'schedule', 'call',
+    // Spanish
+    'contacto', 'contactar', 'correo', 'teléfono', 'reunión', 'reuniones',
+    'hablar', 'consulta', 'agendar', 'cita', 'llamar'
   ],
   benefits: [
     'why', 'benefit', 'advantage', 'better', 'different', 'choose',
-    'best', 'good', 'value', 'worth'
+    'best', 'good', 'value', 'worth',
+    // Spanish
+    'por qué', 'beneficio', 'ventaja', 'mejor', 'diferente', 'elegir',
+    'bueno', 'valor', 'información', 'info', 'saber'
   ],
   scope: [
     'scope', 'focus', 'specialize', 'expertise', 'limitations',
@@ -41,7 +50,10 @@ const ALLOWED_PATTERNS = {
   ],
   ai: [
     'ai', 'artificial intelligence', 'machine learning', 'ml',
-    'automation', 'intelligent', 'smart', 'chatbot', 'nlp'
+    'automation', 'intelligent', 'smart', 'chatbot', 'nlp',
+    // Spanish
+    'inteligencia artificial', 'aprendizaje automático', 'automatización',
+    'inteligente', 'automático'
   ]
 };
 

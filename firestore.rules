@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Meetings: Solo acceso desde el servidor (Firebase Admin SDK)
+    match /meetings/{meetingId} {
+      allow read, write: if false;
+    }
+    
+    // Blocked dates: Solo acceso desde el servidor
+    match /blockedDates/{dateId} {
+      allow read, write: if false;
+    }
+    
+    // Availability slots: Solo acceso desde el servidor
+    match /availabilitySlots/{slotId} {
+      allow read, write: if false;
+    }
+  }
+}

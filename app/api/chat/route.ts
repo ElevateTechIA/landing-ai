@@ -142,10 +142,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 11. Return successful response
+    // 11. Check if user wants to schedule a meeting
+    const schedulingKeywords = ['schedule', 'book', 'meeting', 'appointment', 'agendar', 'reunión', 'cita'];
+    const wantsToSchedule = schedulingKeywords.some(keyword => 
+      sanitizedMessage.toLowerCase().includes(keyword)
+    );
+
+    // 12. Return successful response
     return NextResponse.json({
       response: text,
       source: 'gemini',
+      showScheduling: wantsToSchedule, // Indica si debe mostrar el formulario de agendamiento
       metadata: {
         isOnTopic: true,
         category: classification.category,
@@ -157,6 +164,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Chat API error:', error);
+    
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
 
     // Don't expose internal errors to client
     return NextResponse.json(

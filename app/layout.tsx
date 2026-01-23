@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Elevate AI - Custom AI & Software Solutions",
+  title: "Customer Service AI v.0.0.2",
   description: "Building the Future of Your Business with Custom AI & Software. Tailored solutions for SMBs and startups.",
 };
 
@@ -26,9 +26,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <LanguageProvider>
           <Navbar />

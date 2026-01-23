@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 type Language = 'en' | 'es';
 
@@ -15,6 +15,32 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('en');
 
+  const setAndPersistLanguage = (lang: Language) => {
+    setLanguage(lang);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('language', lang);
+      document.documentElement.lang = lang;
+    }
+  };
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('language');
+    if (stored === 'en' || stored === 'es') {
+      setLanguage(stored);
+      document.documentElement.lang = stored;
+      return;
+    }
+
+    const htmlLang = document.documentElement.lang.toLowerCase();
+    if (htmlLang.startsWith('es')) {
+      setLanguage('es');
+      return;
+    }
+
+    const navLang = navigator.language.toLowerCase();
+    setLanguage(navLang.startsWith('es') ? 'es' : 'en');
+  }, []);
+
   const t = (key: string): string => {
     const keys = key.split('.');
     let value: any = translations[language];
@@ -27,7 +53,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage: setAndPersistLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
