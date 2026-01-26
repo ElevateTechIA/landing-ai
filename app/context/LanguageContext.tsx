@@ -73,11 +73,11 @@ const translations = {
       logo: 'Elevate AI',
     },
     hero: {
-      title: 'Custom Software That Drives Real Business Growth Using AI',
+      title: 'AI Agent That Talks to Your Leads and Books Zoom Meetings for You',
       subtitle: 'For SMBs and Startups',
-      description: 'Stop wasting time on manual processes. We build intelligent software solutions that automate your operations, reduce costs, and scale with your business.',
-      cta: 'Let\'s Talk About Your Project',
-      ctaSecondary: 'See How It Works',
+      description: 'Capture, qualify and schedule calls with one 24/7 AI agent that replaces contact forms and back-and-forth emails.',
+      cta: 'Start AI Intake (2 minutes)',
+      ctaSecondary: 'Try the agent now',
       trust: 'Trusted by',
       trustCount: '50+',
       trustSuffix: 'growing businesses',
@@ -86,6 +86,15 @@ const translations = {
       secure: 'Enterprise Security',
       secureDesc: 'Bank-level data protection',
       scroll: 'Discover how we can help',
+    },
+    heroOriginal: {
+      title: 'Custom Software That Drives Real Business Growth Using AI',
+      description: 'Stop wasting time on manual processes. We build intelligent software solutions that automate your operations, reduce costs, and scale with your business.',
+      cta: 'Let\'s Talk About Your Project',
+      ctaSecondary: 'See How It Works',
+    },
+    howItWorksOriginal: {
+      title: 'How We Work',
     },
     valueProposition: {
       section: 'The Problems We Solve',
@@ -189,9 +198,21 @@ const translations = {
       ctaNote: '30 minutes. No pressure. Just honest advice.',
     },
     howItWorks: {
-      title: 'How We Work',
+      title: 'How It Works',
       roadmap: 'Simple, Clear Process',
       description: 'No surprises. No confusion. Just results.',
+      step1: {
+        title: 'AI Talks to Your Lead',
+        description: 'AI gathers their contact info and booking details.',
+      },
+      step2: {
+        title: 'Meeting Scheduled Instantly',
+        description: 'Date added to your calendar with Zoom link.',
+      },
+      step3: {
+        title: 'You Get a Prepared Call',
+        description: 'Details and transcript sent to your inbox.',
+      },
       discover: {
         title: 'Understand Your Problem',
         description: 'We listen to your challenges, identify where you\'re losing time or money, and define exactly what needs fixing.',
@@ -217,6 +238,17 @@ const translations = {
       navServices: 'Services',
       navProcess: 'Process',
       navContact: 'Contact',
+    },
+    replaceThis: {
+      title: 'Replace This',
+      subtitle: 'With One AI Agent',
+      problem1: 'Manual follow-ups',
+      problem2: 'Missed leads',
+      problem3: 'Back-and-forth emails',
+      problem4: 'Follow-up no-shows',
+      problem5: 'Unqualified calls',
+      needHelp: 'Need help?',
+      startCall: 'Start a call',
     },
     trustTechStack: {
       section: 'Experience & Tools',
@@ -258,11 +290,11 @@ const translations = {
       logo: 'Elevate AI',
     },
     hero: {
-      title: 'Software a Medida Que Impulsa el Crecimiento Real de Tu Negocio Usando IA',
+      title: 'Agente IA Que Habla con Tus Leads y Agenda Reuniones de Zoom por Ti',
       subtitle: 'Para PYMEs y Startups',
-      description: 'Deja de perder tiempo en procesos manuales. Construimos soluciones inteligentes que automatizan tus operaciones, reducen costos y escalan con tu negocio.',
-      cta: 'Hablemos de Tu Proyecto',
-      ctaSecondary: 'Ver Cómo Funciona',
+      description: 'Captura, califica y agenda llamadas con un agente IA 24/7 que reemplaza formularios de contacto y emails de ida y vuelta.',
+      cta: 'Iniciar Intake IA (2 minutos)',
+      ctaSecondary: 'Probar el agente ahora',
       trust: 'Confiado por',
       trustCount: '50+',
       trustSuffix: 'negocios en crecimiento',
@@ -271,6 +303,15 @@ const translations = {
       secure: 'Seguridad Empresarial',
       secureDesc: 'Protección nivel bancario',
       scroll: 'Descubre cómo podemos ayudarte',
+    },
+    heroOriginal: {
+      title: 'Software a Medida Que Impulsa el Crecimiento Real de Tu Negocio Usando IA',
+      description: 'Deja de perder tiempo en procesos manuales. Construimos soluciones inteligentes que automatizan tus operaciones, reducen costos y escalan con tu negocio.',
+      cta: 'Hablemos de Tu Proyecto',
+      ctaSecondary: 'Ver Cómo Funciona',
+    },
+    howItWorksOriginal: {
+      title: 'Cómo Trabajamos',
     },
     valueProposition: {
       section: 'Los Problemas Que Solucionamos',
@@ -374,9 +415,21 @@ const translations = {
       ctaNote: '30 minutos. Sin presión. Solo consejos honestos.',
     },
     howItWorks: {
-      title: 'Cómo Trabajamos',
+      title: 'Cómo Funciona',
       roadmap: 'Proceso Simple y Claro',
       description: 'Sin sorpresas. Sin confusión. Solo resultados.',
+      step1: {
+        title: 'IA Habla con Tu Lead',
+        description: 'La IA recopila su información de contacto y detalles de reserva.',
+      },
+      step2: {
+        title: 'Reunión Agendada al Instante',
+        description: 'Fecha agregada a tu calendario con enlace de Zoom.',
+      },
+      step3: {
+        title: 'Recibes una Llamada Preparada',
+        description: 'Detalles y transcripción enviados a tu inbox.',
+      },
       discover: {
         title: 'Entender Tu Problema',
         description: 'Escuchamos tus desafíos, identificamos dónde pierdes tiempo o dinero, y definimos exactamente qué necesita arreglarse.',
@@ -402,6 +455,17 @@ const translations = {
       navServices: 'Servicios',
       navProcess: 'Proceso',
       navContact: 'Contacto',
+    },
+    replaceThis: {
+      title: 'Reemplaza Esto',
+      subtitle: 'Con Un Agente IA',
+      problem1: 'Seguimientos manuales',
+      problem2: 'Leads perdidos',
+      problem3: 'Emails de ida y vuelta',
+      problem4: 'No-shows de seguimiento',
+      problem5: 'Llamadas no calificadas',
+      needHelp: '¿Necesitas ayuda?',
+      startCall: 'Iniciar llamada',
     },
     trustTechStack: {
       section: 'Experiencia y Herramientas',

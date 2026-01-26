@@ -1,7 +1,6 @@
 'use client';
 
 import { useLanguage } from '../context/LanguageContext';
-import ChallengeChatbot from './ChallengeChatbot';
 
 export default function FinalCallToActionSection() {
   const { t } = useLanguage();
@@ -35,23 +34,44 @@ export default function FinalCallToActionSection() {
           </p>
           <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 max-w-2xl mx-auto mb-6">
             <p className="text-blue-800 font-semibold text-base sm:text-lg mb-2">
-              {t('language') === 'es' 
-                ? '🎯 Chat Interactivo Estructurado'
-                : '🎯 Structured Interactive Chat'
+              {t('language') === 'es'
+                ? '🎯 Habla con Nuestro Agente IA'
+                : '🎯 Talk to Our AI Agent'
               }
             </p>
             <p className="text-blue-700 text-sm sm:text-base">
-              {t('language') === 'es' 
-                ? 'Conversación guiada paso a paso para entender tu proyecto y agendar automáticamente una reunión por Zoom'
-                : 'Step-by-step guided conversation to understand your project and automatically schedule a Zoom meeting'
+              {t('language') === 'es'
+                ? 'Haz clic en el botón de llamada abajo para hablar con Andrea, nuestra asistente IA'
+                : 'Click the call button below to talk with Andrea, our AI assistant'
               }
             </p>
           </div>
         </div>
 
-        {/* Challenge Chatbot */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200">
-          <ChallengeChatbot />
+        {/* Call to Action Card */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 sm:p-12 text-center">
+          <div className="w-24 h-24 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
+            <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Andrea</h3>
+          <p className="text-gray-600 mb-6">
+            {t('language') === 'es'
+              ? 'Lista para ayudarte'
+              : 'Ready to help you'
+            }
+          </p>
+          <p className="text-gray-500 text-sm mb-4">
+            {t('language') === 'es'
+              ? 'Haz clic en el botón púrpura en la esquina inferior derecha para iniciar una llamada'
+              : 'Click the purple button in the bottom right corner to start a call'
+            }
+          </p>
+          <div className="flex items-center justify-center gap-2 text-gray-400 text-xs">
+            <span>Powered by</span>
+            <span className="font-semibold text-blue-600">ElevenLabs</span>
+          </div>
         </div>
       </div>
       </div>

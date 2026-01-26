@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useLanguage } from '../context/LanguageContext';
 import { scrollToContact, scrollToSection } from '../utils/scroll';
 
@@ -8,90 +7,124 @@ export default function HeroSection() {
   const { t } = useLanguage();
 
   return (
-    <section className="min-h-screen bg-white px-4 sm:px-6 lg:px-8 pt-24 lg:pt-32 pb-16">
+    <section className="min-h-screen relative overflow-hidden px-4 sm:px-6 lg:px-8 pt-24 lg:pt-32 pb-16">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 -z-10" />
+
+      {/* Decorative circles */}
+      <div className="absolute top-20 right-10 w-64 h-64 bg-blue-100/50 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-purple-100/50 rounded-full blur-3xl -z-10" />
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
-        <div className="lg:grid lg:grid-cols-2 lg:gap-16 xl:gap-20 lg:items-center">
-        <div className="mb-12 lg:mb-0">
-        <div>
-          <p className="text-blue-600 text-sm sm:text-base font-semibold mb-3 uppercase tracking-wide">
-            {t('hero.subtitle')}
-          </p>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-4 lg:mb-6 leading-tight">
-            {t('hero.title')}
-          </h1>
-          <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed mb-8 lg:mb-10">
-            {t('hero.description')}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
-            <button
-              onClick={scrollToContact}
-              className="w-full sm:w-auto bg-blue-600 text-white py-3 px-8 lg:py-4 lg:px-10 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            >
-              {t('hero.cta')}
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <button
-              onClick={() => scrollToSection('process')}
-              className="w-full sm:w-auto bg-white text-blue-600 border-2 border-blue-600 py-3 px-8 lg:py-4 lg:px-10 rounded-lg font-medium hover:bg-blue-50 transition-colors"
-            >
-              {t('hero.ctaSecondary')}
-            </button>
-          </div>
-        </div>
-
-        </div>
-
-        {/* CEO Image */}
-        <div className="lg:order-first mb-8 lg:mb-0">
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-square lg:aspect-auto">
-          <Image
-            src="/images/cesarvega.png"
-            alt="Cesar Oswaldo Vega - CEO"
-            width={800}
-            height={800}
-            className="w-full h-full rounded-2xl object-cover"
-            priority
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 sm:p-8">
-            <p className="text-white text-xl sm:text-2xl lg:text-3xl font-semibold">Cesar Oswaldo Vega</p>
-            <p className="text-white/90 text-base sm:text-lg">CEO</p>
-          </div>
-        </div>
-        </div>
-        </div>
-
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-16 lg:mt-20 max-w-6xl mx-auto">
-          <div className="bg-gray-50 rounded-xl p-6 sm:p-8 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+        <div className="lg:grid lg:grid-cols-2 lg:gap-12 xl:gap-16 lg:items-center">
+          {/* Left Column - Text */}
+          <div className="mb-12 lg:mb-0">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+              {t('hero.title')}
+            </h1>
+            <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed mb-8">
+              {t('hero.description')}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={scrollToContact}
+                className="w-full sm:w-auto bg-blue-600 text-white py-3.5 px-8 rounded-xl font-medium hover:bg-blue-700 transition-all hover:shadow-lg flex items-center justify-center gap-2"
+              >
+                {t('hero.cta')}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => scrollToSection('process')}
+                className="w-full sm:w-auto text-gray-700 py-3.5 px-8 font-medium hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+              >
+                {t('hero.ctaSecondary')}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2 text-base sm:text-lg">{t('hero.smartFast')}</h3>
-            <p className="text-sm sm:text-base text-gray-600">{t('hero.smartFastDesc')}</p>
           </div>
-          <div className="bg-gray-50 rounded-xl p-6 sm:p-8 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
+
+          {/* Right Column - Phone Mockup */}
+          <div className="relative flex justify-center lg:justify-end">
+            {/* Phone Frame */}
+            <div className="relative w-72 sm:w-80 lg:w-96">
+              {/* Phone outer frame */}
+              <div className="bg-gray-200 rounded-[3rem] p-2 shadow-2xl">
+                {/* Phone inner frame */}
+                <div className="bg-white rounded-[2.5rem] overflow-hidden">
+                  {/* Phone notch */}
+                  <div className="bg-gray-100 h-8 flex items-center justify-center">
+                    <div className="w-20 h-5 bg-gray-800 rounded-full" />
+                  </div>
+
+                  {/* Phone content */}
+                  <div className="bg-gradient-to-b from-blue-50 to-white p-4">
+                    {/* AI Assistant Header */}
+                    <div className="bg-blue-600 rounded-xl p-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                          <span className="text-2xl">🤖</span>
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">AI Virtual Assistant</p>
+                          <p className="text-blue-200 text-xs">Always available</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Chat bubble */}
+                    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
+                      <p className="text-gray-800 text-sm leading-relaxed">
+                        Hello! 👋 I&apos;m your AI assistant. I&apos;ll guide you through a brief call to better understand your needs and book a Zoom meeting.
+                      </p>
+                      <p className="text-gray-400 text-xs mt-2">12:58 PM</p>
+                    </div>
+
+                    {/* Voice indicator */}
+                    <div className="flex flex-col items-center py-4">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      </div>
+                      {/* Audio waveform */}
+                      <div className="flex items-center gap-1 mb-2">
+                        {[12, 18, 10, 22, 14, 26, 16, 20, 12, 24, 14, 18].map((height, i) => (
+                          <div
+                            key={i}
+                            className="w-1 bg-blue-400 rounded-full"
+                            style={{ height: `${height}px` }}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-gray-600 text-sm font-medium">00:08</p>
+                      <p className="text-gray-500 text-xs mt-1">Booking a call in our Google Calendar</p>
+                    </div>
+
+                    {/* Stop button */}
+                    <button className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium mb-3">
+                      Stop
+                    </button>
+
+                    {/* Text input */}
+                    <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <span className="text-gray-400 text-sm">Enter text instead...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2 text-base sm:text-lg">{t('hero.secure')}</h3>
-            <p className="text-sm sm:text-base text-gray-600">{t('hero.secureDesc')}</p>
           </div>
         </div>
-      </div>
-
-      {/* Bottom Navigation Hint */}
-      <div className="mt-16 lg:mt-20 text-center">
-        <p className="text-sm sm:text-base text-gray-400 mb-3">{t('hero.scroll')}</p>
-        <svg className="w-6 h-6 sm:w-7 sm:h-7 mx-auto text-gray-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
       </div>
     </section>
   );
