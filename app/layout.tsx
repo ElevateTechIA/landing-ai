@@ -4,6 +4,7 @@ import "./globals.css";
 import { LanguageProvider } from "./context/LanguageContext";
 import Navbar from "./components/Navbar";
 import ChatModeToggle from "./components/ChatModeToggle";
+import ElevenLabsWidget from "./components/ElevenLabsWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,7 +39,7 @@ export default function RootLayout({
           <Navbar />
           {children}
           <ChatModeToggle />
-          <elevenlabs-convai agent-id="agent_9701kfjwedcxec8tfmakmvzb2mvm"></elevenlabs-convai>
+          <ElevenLabsWidget />
         </LanguageProvider>
       </body>
     </html>
