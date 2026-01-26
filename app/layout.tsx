@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "./context/LanguageContext";
 import Navbar from "./components/Navbar";
-import AIVoiceCall from "./components/AIVoiceCall";
+import ChatModeToggle from "./components/ChatModeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +37,7 @@ export default function RootLayout({
         <LanguageProvider>
           <Navbar />
           {children}
-          <AIVoiceCall />
+          <ChatModeToggle />
           <elevenlabs-convai agent-id="agent_9701kfjwedcxec8tfmakmvzb2mvm"></elevenlabs-convai>
         </LanguageProvider>
       </body>
