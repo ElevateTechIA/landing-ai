@@ -27,6 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
@@ -35,6 +38,7 @@ export default function RootLayout({
           <Navbar />
           {children}
           <AIVoiceCall />
+          <elevenlabs-convai agent-id="agent_9701kfjwedcxec8tfmakmvzb2mvm"></elevenlabs-convai>
         </LanguageProvider>
       </body>
     </html>

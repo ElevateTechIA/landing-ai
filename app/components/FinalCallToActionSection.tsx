@@ -53,43 +53,6 @@ export default function FinalCallToActionSection() {
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-200">
           <ChallengeChatbot />
         </div>
-
-        {/* Benefits Below */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="bg-white rounded-xl p-4 shadow-md">
-            <div className="text-3xl mb-2">⚡</div>
-            <h4 className="font-semibold text-gray-800 mb-1">
-              {t('language') === 'es' ? 'Rápido y Eficiente' : 'Fast & Efficient'}
-            </h4>
-            <p className="text-sm text-gray-600">
-              {t('language') === 'es' 
-                ? 'Recopilamos toda la información necesaria en minutos'
-                : 'We collect all necessary information in minutes'}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-md">
-            <div className="text-3xl mb-2">📅</div>
-            <h4 className="font-semibold text-gray-800 mb-1">
-              {t('language') === 'es' ? 'Agendamiento Automático' : 'Automatic Scheduling'}
-            </h4>
-            <p className="text-sm text-gray-600">
-              {t('language') === 'es' 
-                ? 'Sistema inteligente de calendario sin cruces'
-                : 'Smart calendar system without conflicts'}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-md">
-            <div className="text-3xl mb-2">🎯</div>
-            <h4 className="font-semibold text-gray-800 mb-1">
-              {t('language') === 'es' ? 'Reuniones Preparadas' : 'Prepared Meetings'}
-            </h4>
-            <p className="text-sm text-gray-600">
-              {t('language') === 'es' 
-                ? 'Llegamos con claridad sobre tu proyecto'
-                : 'We arrive with clarity about your project'}
-            </p>
-          </div>
-        </div>
       </div>
       </div>
     </section>
