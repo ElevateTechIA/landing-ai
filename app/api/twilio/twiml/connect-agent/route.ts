@@ -65,8 +65,12 @@ async function handleTwiMLRequest(request: NextRequest) {
  * @returns TwiML XML string
  */
 function generateConnectTwiML(agentId: string, customerName: string): string {
-  // ElevenLabs WebSocket URL for agent
-  const websocketUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${agentId}`;
+  // For ElevenLabs + Twilio integration, we need to use a signed URL approach
+  // or pass the authorization through the websocket URL as a query parameter
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+
+  // Include API key in the WebSocket URL as authorization
+  const websocketUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${agentId}&authorization=${apiKey}`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
