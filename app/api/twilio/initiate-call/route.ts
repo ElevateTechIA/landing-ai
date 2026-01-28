@@ -123,6 +123,12 @@ export async function POST(request: NextRequest) {
           success: false,
           error: 'ELEVENLABS_ERROR',
           message: 'Failed to initiate call through ElevenLabs. Please try again.',
+          debug: {
+            status: elevenLabsResponse.status,
+            error: errorText,
+            phoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+            hasApiKey: !!process.env.ELEVENLABS_API_KEY,
+          },
         },
         { status: 500 }
       );
