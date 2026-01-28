@@ -37,6 +37,8 @@ export const collections = {
   meetings: 'meetings',
   blockedDates: 'blockedDates',
   availabilitySlots: 'availabilitySlots',
+  calls: 'calls',
+  callLogs: 'callLogs',
 };
 
 // Tipos para TypeScript
@@ -79,4 +81,134 @@ export interface AvailabilitySlot {
   isAvailable: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface Call {
+  id?: string;
+
+  // Twilio data
+  callSid: string; // Twilio Call SID (unique identifier)
+  phoneNumber: string; // E.164 format: +15551234567
+  direction: 'inbound' | 'outbound'; // Call direction
+  status: 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'failed' | 'canceled';
+  duration?: number; // Call duration in seconds
+  recordingUrl?: string; // Twilio recording URL
+
+  // ElevenLabs data
+  conversationId?: string; // ElevenLabs conversation ID
+  agentId: string; // ElevenLabs agent ID
+  transcript?: Array<{
+    // Conversation transcript
+    role: 'agent' | 'user';
+    content: string;
+    timestamp: Date;
+  }>;
+
+  // Customer data
+  customerName?: string;
+  customerEmail?: string;
+  customVariables?: Record<string, any>; // Dynamic variables passed to agent
+
+  // Metadata
+  initiatedAt: Date; // When call was initiated
+  answeredAt?: Date; // When call was answered
+  endedAt?: Date; // When call ended
+  failureReason?: string; // Error message if failed
+
+  // Follow-up actions
+  meetingScheduled?: boolean;
+  meetingId?: string; // Reference to meetings collection
+  followUpRequired?: boolean;
+  notes?: string;
+
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CallLog {
+  id?: string;
+  date: Date; // Date of log (for aggregation)
+  totalCalls: number;
+  inboundCalls: number;
+  outboundCalls: number;
+  completedCalls: number;
+  failedCalls: number;
+  totalDuration: number; // Total minutes
+  averageDuration: number; // Average call length
+  answeredRate: number; // Percentage answered
+  createdAt: Date;
+}
+
+// Call helper functions
+export async function saveCall(callData: Omit<Call, 'id'>): Promise<{ success: boolean; callId?: string; error?: string }> {
+  try {
+    const docRef = await db.collection(collections.calls).add(callData);
+    console.log('[FIREBASE] Call saved:', docRef.id);
+    return { success: true, callId: docRef.id };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving call:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+export async function updateCallStatus(
+  callId: string,
+  updates: Partial<Call>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.calls).doc(callId).update({
+      ...updates,
+      updatedAt: new Date(),
+    });
+    console.log('[FIREBASE] Call updated:', callId);
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating call:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+export async function getCallBySid(callSid: string): Promise<Call | null> {
+  try {
+    const snapshot = await db
+      .collection(collections.calls)
+      .where('callSid', '==', callSid)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() } as Call;
+  } catch (error) {
+    console.error('[FIREBASE] Error getting call by SID:', error);
+    return null;
+  }
+}
+
+export async function getRecentCalls(limit: number = 50): Promise<Call[]> {
+  try {
+    const snapshot = await db
+      .collection(collections.calls)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Call[];
+  } catch (error) {
+    console.error('[FIREBASE] Error getting recent calls:', error);
+    return [];
+  }
 }

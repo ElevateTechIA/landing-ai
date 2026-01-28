@@ -3,11 +3,15 @@
 import { useConversation } from '@elevenlabs/react';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import CallButton from '../components/CallButton';
 
 export default function AgentServicesPage() {
   const { language } = useLanguage();
   const [isCallStarted, setIsCallStarted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [callType, setCallType] = useState<'web' | 'phone'>('web');
 
   const conversation = useConversation({
     onConnect: () => {
@@ -29,7 +33,7 @@ export default function AgentServicesPage() {
   const startConversation = async () => {
     try {
       await conversation.startSession({
-        agentId: 'agent_9701kfjwedcxec8tfmakmvzb2mvm',
+        agentId: 'agent_1601kg04pgp8eqaan7fy0h6ngea5',
         connectionType: 'websocket' as const,
       });
     } catch (error) {
@@ -135,6 +139,147 @@ export default function AgentServicesPage() {
 
           {/* Right Column - Agent Interface */}
           <div className="lg:sticky lg:top-8">
+            {/* Call Type Selector */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {language === 'es' ? 'Elige cómo conectar' : 'Choose how to connect'}
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setCallType('web')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    callType === 'web'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <div className="font-semibold">{language === 'es' ? 'Web' : 'Web'}</div>
+                  <div className="text-xs opacity-75">{language === 'es' ? 'En tu navegador' : 'In your browser'}</div>
+                </button>
+                <button
+                  onClick={() => setCallType('phone')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    callType === 'phone'
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <div className="font-semibold">{language === 'es' ? 'Teléfono' : 'Phone'}</div>
+                  <div className="text-xs opacity-75">{language === 'es' ? 'Te llamamos' : 'We call you'}</div>
+                </button>
+              </div>
+            </div>
+
+            {callType === 'phone' ? (
+              /* Phone Call Interface */
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">{language === 'es' ? 'Recibe una llamada' : 'Get a call'}</h2>
+                      <p className="text-green-100 text-sm">
+                        {language === 'es' ? 'Te llamaremos a tu teléfono' : 'We\'ll call your phone'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8">
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-green-100 to-teal-100 flex items-center justify-center mb-4">
+                        <svg className="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 text-sm">
+                        {language === 'es'
+                          ? 'Ingresa tu número y te llamaremos en segundos'
+                          : 'Enter your number and we\'ll call you in seconds'
+                        }
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {language === 'es' ? 'Tu nombre (opcional)' : 'Your name (optional)'}
+                      </label>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder={language === 'es' ? 'Ej: Juan Pérez' : 'Ex: John Doe'}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {language === 'es' ? 'Número de teléfono' : 'Phone number'}
+                      </label>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+1 234 567 8900"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                      <p className="mt-2 text-xs text-gray-500">
+                        {language === 'es'
+                          ? 'Incluye el código de país (ej: +1 para USA, +52 para México)'
+                          : 'Include country code (ex: +1 for USA, +52 for Mexico)'
+                        }
+                      </p>
+                    </div>
+
+                    <CallButton
+                      phoneNumber={phoneNumber}
+                      customerName={customerName}
+                      agentId="agent_1601kg04pgp8eqaan7fy0h6ngea5"
+                      onCallInitiated={(callSid, callId) => {
+                        console.log('Call initiated:', callSid, callId);
+                      }}
+                      onError={(error) => {
+                        console.error('Call error:', error);
+                      }}
+                      className="w-full"
+                    >
+                      <span>{language === 'es' ? '📞 Llamarme ahora' : '📞 Call me now'}</span>
+                    </CallButton>
+
+                    <div className="bg-green-50 rounded-lg p-4 text-sm text-green-800">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>
+                          {language === 'es'
+                            ? 'Recibirás una llamada desde nuestro número. La llamada es gratuita y tu número no será compartido.'
+                            : 'You\'ll receive a call from our number. The call is free and your number won\'t be shared.'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 px-6 py-4 text-center text-xs text-gray-500">
+                  Powered by <span className="text-green-600 font-semibold">Twilio</span> + <span className="text-blue-600 font-semibold">ElevenLabs</span>
+                </div>
+              </div>
+            ) : (
+            /* Web Call Interface (existing) */
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
               {/* Agent Header */}
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
@@ -289,6 +434,8 @@ export default function AgentServicesPage() {
                 Powered by <span className="text-blue-600 font-semibold">ElevenLabs</span> Conversational AI
               </div>
             </div>
+            )
+            }
           </div>
         </div>
       </div>
