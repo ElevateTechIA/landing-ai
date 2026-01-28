@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIdentifier } from '@/app/lib/chatbot/rateLimiter';
-import { formatPhoneNumber, isValidPhoneNumber, makeOutboundCall } from '@/lib/twilio';
+import { formatPhoneNumber, isValidPhoneNumber } from '@/lib/twilio';
 import { saveCall } from '@/lib/firebase';
 
 /**
@@ -123,12 +123,6 @@ export async function POST(request: NextRequest) {
           success: false,
           error: 'ELEVENLABS_ERROR',
           message: 'Failed to initiate call through ElevenLabs. Please try again.',
-          debug: {
-            status: elevenLabsResponse.status,
-            error: errorText,
-            phoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
-            hasApiKey: !!process.env.ELEVENLABS_API_KEY,
-          },
         },
         { status: 500 }
       );
@@ -188,6 +182,6 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle OPTIONS for CORS preflight
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return NextResponse.json({}, { status: 200 });
 }
