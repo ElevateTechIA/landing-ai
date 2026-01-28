@@ -1,7 +1,7 @@
 'use client';
 
 import { useConversation } from '@elevenlabs/react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import CallButton from '../components/CallButton';
 
@@ -32,12 +32,17 @@ export default function AgentServicesPage() {
 
   const startConversation = async () => {
     try {
+      // Request microphone permissions first
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Stop the test stream
+
       await conversation.startSession({
         agentId: 'agent_1601kg04pgp8eqaan7fy0h6ngea5',
-        connectionType: 'websocket' as const,
+        connectionType: 'webrtc' as const,
       });
     } catch (error) {
       console.error('Failed to start conversation:', error);
+      alert('Por favor permite el acceso al micrófono para usar esta función. / Please allow microphone access to use this feature.');
     }
   };
 
