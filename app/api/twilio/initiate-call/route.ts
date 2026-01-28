@@ -79,16 +79,45 @@ export async function POST(request: NextRequest) {
       agentId,
     });
 
-    // 4. Create TwiML URL for connecting to ElevenLabs
-    // ElevenLabs will create the conversation when Twilio connects via WebSocket
-    const twimlUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/twiml/connect-agent?agent_id=${agentId}&customer_name=${encodeURIComponent(customerName || '')}`;
-
-    // 5. Initiate call via Twilio
-    const twilioResult = await makeOutboundCall(
-      formattedPhone,
-      process.env.TWILIO_PHONE_NUMBER!,
-      twimlUrl
+    // 4. Initiate call directly through ElevenLabs API
+    // This uses ElevenLabs' Twilio integration where they handle the call
+    const elevenLabsResponse = await fetch(
+      'https://api.elevenlabs.io/v1/convai/conversation/initiate_phone_call',
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agent_id: agentId,
+          phone_number: formattedPhone,
+        }),
+      }
     );
+
+    if (!elevenLabsResponse.ok) {
+      const errorText = await elevenLabsResponse.text();
+      console.error('[INITIATE_CALL] ElevenLabs call failed:', {
+        status: elevenLabsResponse.status,
+        error: errorText,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'ELEVENLABS_ERROR',
+          message: 'Failed to initiate call through ElevenLabs. Please try again.',
+        },
+        { status: 500 }
+      );
+    }
+
+    const elevenLabsData = await elevenLabsResponse.json();
+    const twilioResult = {
+      success: true,
+      callSid: elevenLabsData.call_id || `EL_${Date.now()}`,
+      status: 'initiated',
+    };
 
     if (!twilioResult.success) {
       console.error('[INITIATE_CALL] Twilio call failed:', twilioResult.error);
