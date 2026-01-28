@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIdentifier } from '@/app/lib/chatbot/rateLimiter';
 import { formatPhoneNumber, isValidPhoneNumber, makeOutboundCall } from '@/lib/twilio';
-import { registerElevenLabsCall } from '@/lib/elevenlabs';
 import { saveCall } from '@/lib/firebase';
 
 /**
@@ -80,39 +79,11 @@ export async function POST(request: NextRequest) {
       agentId,
     });
 
-    // 4. Register conversation with ElevenLabs
-    const elevenLabsResult = await registerElevenLabsCall({
-      agentId,
-      phoneNumber: formattedPhone,
-      metadata: {
-        customer_name: customerName,
-        customer_email: customerEmail,
-        initiated_by: 'outbound_api',
-        initiated_at: new Date().toISOString(),
-        source: 'landing_page',
-      },
-      customVariables: customVariables || {},
-    });
+    // 4. Create TwiML URL for connecting to ElevenLabs
+    // ElevenLabs will create the conversation when Twilio connects via WebSocket
+    const twimlUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/twiml/connect-agent?agent_id=${agentId}&customer_name=${encodeURIComponent(customerName || '')}`;
 
-    if (!elevenLabsResult.success) {
-      console.error('[INITIATE_CALL] ElevenLabs registration failed:', elevenLabsResult.error);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'ELEVENLABS_ERROR',
-          message: 'Failed to register call with AI agent. Please try again.',
-        },
-        { status: 500 }
-      );
-    }
-
-    const conversationId = elevenLabsResult.conversationId;
-    console.log('[INITIATE_CALL] ElevenLabs conversation registered:', conversationId);
-
-    // 5. Create TwiML URL for connecting to ElevenLabs
-    const twimlUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/twilio/twiml/connect-agent?conversation_id=${conversationId}&agent_id=${agentId}`;
-
-    // 6. Initiate call via Twilio
+    // 5. Initiate call via Twilio
     const twilioResult = await makeOutboundCall(
       formattedPhone,
       process.env.TWILIO_PHONE_NUMBER!,
@@ -133,10 +104,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[INITIATE_CALL] Twilio call initiated:', twilioResult.callSid);
 
-    // 7. Save call record to Firebase
+    // 6. Save call record to Firebase
     const callRecord = {
       callSid: twilioResult.callSid!,
-      conversationId: conversationId,
+      conversationId: undefined, // Will be set later when ElevenLabs creates it
       phoneNumber: formattedPhone,
       customerName: customerName || undefined,
       customerEmail: customerEmail || undefined,
@@ -156,12 +127,11 @@ export async function POST(request: NextRequest) {
       // Continue even if Firebase save fails - call is already initiated
     }
 
-    // 8. Return success response
+    // 7. Return success response
     return NextResponse.json({
       success: true,
       callSid: twilioResult.callSid,
       callId: saveResult.callId,
-      conversationId,
       status: 'initiated',
       message: 'Call initiated successfully. Customer will receive call shortly.',
     });

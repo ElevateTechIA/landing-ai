@@ -17,19 +17,8 @@ async function handleTwiMLRequest(request: NextRequest) {
   try {
     // Extract query parameters
     const searchParams = request.nextUrl.searchParams;
-    const conversationId = searchParams.get('conversation_id');
     const agentId = searchParams.get('agent_id');
-
-    if (!conversationId) {
-      console.error('[TWIML] Missing conversation_id parameter');
-      return new NextResponse(
-        generateErrorTwiML('Missing conversation ID'),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'text/xml' },
-        }
-      );
-    }
+    const customerName = searchParams.get('customer_name') || '';
 
     if (!agentId) {
       console.error('[TWIML] Missing agent_id parameter');
@@ -43,12 +32,12 @@ async function handleTwiMLRequest(request: NextRequest) {
     }
 
     console.log('[TWIML] Generating TwiML for:', {
-      conversationId,
       agentId,
+      customerName,
     });
 
     // Generate TwiML to connect call to ElevenLabs WebSocket
-    const twiml = generateConnectTwiML(conversationId, agentId);
+    const twiml = generateConnectTwiML(agentId, customerName);
 
     return new NextResponse(twiml, {
       status: 200,
@@ -71,21 +60,18 @@ async function handleTwiMLRequest(request: NextRequest) {
 
 /**
  * Generate TwiML to connect Twilio call to ElevenLabs WebSocket
- * @param conversationId - ElevenLabs conversation ID
  * @param agentId - ElevenLabs agent ID
+ * @param customerName - Customer name (optional)
  * @returns TwiML XML string
  */
-function generateConnectTwiML(conversationId: string, agentId: string): string {
-  // ElevenLabs WebSocket URL for conversation
-  const websocketUrl = `wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=${conversationId}`;
+function generateConnectTwiML(agentId: string, customerName: string): string {
+  // ElevenLabs WebSocket URL for agent
+  const websocketUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${agentId}`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="${websocketUrl}">
-      <Parameter name="agent_id" value="${agentId}" />
-      <Parameter name="conversation_id" value="${conversationId}" />
-    </Stream>
+    <Stream url="${websocketUrl}" />
   </Connect>
 </Response>`;
 }
