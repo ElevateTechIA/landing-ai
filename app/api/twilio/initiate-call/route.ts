@@ -79,10 +79,22 @@ export async function POST(request: NextRequest) {
       agentId,
     });
 
-    // 4. Initiate call directly through ElevenLabs API
-    // This uses ElevenLabs' Twilio integration where they handle the call
+    // 4. Validate ElevenLabs phone number ID is configured
+    if (!process.env.ELEVENLABS_PHONE_NUMBER_ID) {
+      console.error('[INITIATE_CALL] Missing ELEVENLABS_PHONE_NUMBER_ID');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'CONFIGURATION_ERROR',
+          message: 'ElevenLabs phone number ID not configured. Please contact support.',
+        },
+        { status: 500 }
+      );
+    }
+
+    // 5. Initiate call through ElevenLabs Twilio API
     const elevenLabsResponse = await fetch(
-      'https://api.elevenlabs.io/v1/convai/conversation/initiate_phone_call',
+      'https://api.elevenlabs.io/v1/convai/twilio/outbound-call',
       {
         method: 'POST',
         headers: {
@@ -91,7 +103,11 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           agent_id: agentId,
-          phone_number: formattedPhone,
+          agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+          to_number: formattedPhone,
+          conversation_initiation_client_data: customVariables ? {
+            dynamic_variables: customVariables,
+          } : undefined,
         }),
       }
     );
@@ -113,30 +129,16 @@ export async function POST(request: NextRequest) {
     }
 
     const elevenLabsData = await elevenLabsResponse.json();
-    const twilioResult = {
-      success: true,
-      callSid: elevenLabsData.call_id || `EL_${Date.now()}`,
-      status: 'initiated',
-    };
 
-    if (!twilioResult.success) {
-      console.error('[INITIATE_CALL] Twilio call failed:', twilioResult.error);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'TWILIO_ERROR',
-          message: 'Failed to initiate call. Please check the phone number and try again.',
-        },
-        { status: 500 }
-      );
-    }
-
-    console.log('[INITIATE_CALL] Twilio call initiated:', twilioResult.callSid);
+    console.log('[INITIATE_CALL] ElevenLabs call initiated:', {
+      conversationId: elevenLabsData.conversation_id,
+      callSid: elevenLabsData.callSid,
+    });
 
     // 6. Save call record to Firebase
     const callRecord = {
-      callSid: twilioResult.callSid!,
-      conversationId: undefined, // Will be set later when ElevenLabs creates it
+      callSid: elevenLabsData.callSid || `EL_${Date.now()}`,
+      conversationId: elevenLabsData.conversation_id || undefined,
       phoneNumber: formattedPhone,
       customerName: customerName || undefined,
       customerEmail: customerEmail || undefined,
@@ -159,7 +161,8 @@ export async function POST(request: NextRequest) {
     // 7. Return success response
     return NextResponse.json({
       success: true,
-      callSid: twilioResult.callSid,
+      callSid: elevenLabsData.callSid,
+      conversationId: elevenLabsData.conversation_id,
       callId: saveResult.callId,
       status: 'initiated',
       message: 'Call initiated successfully. Customer will receive call shortly.',

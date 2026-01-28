@@ -16,7 +16,8 @@
       "Bash(npm install:*)",
       "Bash(git add:*)",
       "Bash(npm uninstall:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:elevenlabs.io)"
     ]
   }
 }
