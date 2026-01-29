@@ -245,7 +245,7 @@ export default function VoiceChatPage() {
       stream.getTracks().forEach(track => track.stop());
 
       await conversation.startSession({
-        agentId: 'agent_1601kg04pgp8eqaan7fy0h6ngea5',
+        agentId: 'agent_2301kg3qxsdcfgha22tf1eq8vr4z',
         connectionType: 'webrtc' as const,
       });
     } catch (error) {
