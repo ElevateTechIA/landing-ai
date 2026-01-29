@@ -246,6 +246,247 @@ export async function sendMeetingReminder(params: {
 /**
  * Envía notificación al anfitrión sobre una nueva reunión agendada
  */
+/**
+ * Envía email con transcripción del voice chat
+ */
+interface VoiceChatMessage {
+  id: string;
+  role: 'user' | 'agent';
+  message: string;
+  timestamp: string;
+}
+
+interface SendVoiceChatTranscriptParams {
+  to: string;
+  recipient: 'host' | 'client';
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  purpose: string;
+  scheduledTime: string;
+  zoomLink: string;
+  messages: VoiceChatMessage[];
+  conversationId: string;
+}
+
+export async function sendVoiceChatTranscriptEmail(params: SendVoiceChatTranscriptParams) {
+  const {
+    to,
+    recipient,
+    name,
+    email,
+    phone,
+    company,
+    purpose,
+    scheduledTime,
+    zoomLink,
+    messages,
+    conversationId
+  } = params;
+
+  try {
+    const isHost = recipient === 'host';
+    const subject = isHost
+      ? `🆕 Nueva Reunión Agendada - ${name}`
+      : `✅ Reunión Confirmada - Elevate AI`;
+
+    // Generate chat transcript HTML
+    const chatTranscriptHTML = messages
+      .map(msg => {
+        const time = new Date(msg.timestamp).toLocaleTimeString('es-MX', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        if (msg.role === 'user') {
+          return `
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+              <div style="max-width: 70%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; border-radius: 18px 18px 4px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; text-align: right;">
+                  <strong>Cliente</strong> • ${time}
+                </div>
+                <div style="font-size: 14px; line-height: 1.4;">${msg.message}</div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div style="display: flex; justify-content: flex-start; margin-bottom: 12px;">
+              <div style="max-width: 70%; background: white; border: 1px solid #e5e7eb; color: #1f2937; padding: 12px 16px; border-radius: 18px 18px 18px 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
+                  <strong>Andrea (AI)</strong> • ${time}
+                </div>
+                <div style="font-size: 14px; line-height: 1.4;">${msg.message}</div>
+              </div>
+            </div>
+          `;
+        }
+      })
+      .join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; background-color: #f3f4f6;">
+        <div style="background: linear-gradient(135deg, ${isHost ? '#10b981 0%, #059669 100%' : '#667eea 0%, #764ba2 100%'}); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <div style="background: rgba(255,255,255,0.15); display: inline-block; padding: 8px 16px; border-radius: 20px; margin-bottom: 10px;">
+            <span style="color: white; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">NUEVA</span>
+          </div>
+          <h1 style="color: white; margin: 0; font-size: 26px;">${isHost ? '🆕 Nueva Reunión Agendada' : '🎉 Reunión Confirmada'}</h1>
+        </div>
+
+        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          ${!isHost ? `
+            <p style="font-size: 18px; color: #1f2937; margin-bottom: 10px;">¡Hola <strong>${name}</strong>!</p>
+            <p style="font-size: 16px; color: #4b5563; margin-bottom: 25px;">
+              Tu reunión ha sido confirmada exitosamente. A continuación encontrarás los detalles y la transcripción de nuestra conversación.
+            </p>
+          ` : ''}
+
+          <!-- Meeting Details -->
+          <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+              <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                <span style="font-size: 20px;">📅</span>
+              </div>
+              <h2 style="color: #1f2937; margin: 0; font-size: 18px;">Detalles de la Reunión</h2>
+            </div>
+
+            <div style="margin-left: 48px;">
+              <p style="margin: 8px 0;"><strong style="color: #6b7280;">Fecha y Hora:</strong> <span style="color: #1f2937;">${scheduledTime}</span></p>
+              <p style="margin: 8px 0;">
+                <strong style="color: #6b7280;">Link de Zoom:</strong><br>
+                <a href="${zoomLink}" style="color: #2563eb; text-decoration: none; word-break: break-all; font-size: 14px;">${zoomLink}</a>
+              </p>
+            </div>
+          </div>
+
+          <!-- Prospect Information (for host) or Summary (for client) -->
+          <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+              <div style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                <span style="font-size: 20px;">${isHost ? '👤' : '📋'}</span>
+              </div>
+              <h2 style="color: #1f2937; margin: 0; font-size: 18px;">${isHost ? 'Información del Prospecto' : 'Resumen de tu Consulta'}</h2>
+            </div>
+
+            <div style="margin-left: 48px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; width: 120px;">Nombre:</td>
+                  <td style="padding: 8px 0; font-weight: 600; color: #1f2937;">${name}</td>
+                </tr>
+                ${email && email !== 'No proporcionado' ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280;">Email:</td>
+                  <td style="padding: 8px 0;">
+                    <a href="mailto:${email}" style="color: #2563eb; text-decoration: none;">${email}</a>
+                  </td>
+                </tr>
+                ` : ''}
+                ${phone && phone !== 'No proporcionado' ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280;">Teléfono:</td>
+                  <td style="padding: 8px 0;">
+                    <a href="tel:${phone}" style="color: #2563eb; text-decoration: none;">${phone}</a>
+                  </td>
+                </tr>
+                ` : ''}
+                ${company && company !== 'No especificada' ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280;">Empresa:</td>
+                  <td style="padding: 8px 0; font-weight: 600; color: #1f2937;">${company}</td>
+                </tr>
+                ` : ''}
+                ${purpose && purpose !== 'No especificado' ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280;">Propósito:</td>
+                  <td style="padding: 8px 0; color: #1f2937;">${purpose}</td>
+                </tr>
+                ` : ''}
+              </table>
+            </div>
+          </div>
+
+          <!-- Chat Transcript -->
+          <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+              <div style="background: linear-gradient(135deg, #06b6d4, #0891b2); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                <span style="font-size: 20px;">💬</span>
+              </div>
+              <h2 style="color: #1f2937; margin: 0; font-size: 18px;">Transcripción de la Conversación</h2>
+            </div>
+
+            <div style="background: white; border-radius: 12px; padding: 20px; max-height: 500px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
+              ${chatTranscriptHTML}
+            </div>
+
+            <p style="margin: 15px 0 0 0; color: #6b7280; font-size: 12px; text-align: center;">
+              Conversación ID: ${conversationId} • ${messages.length} mensajes
+            </p>
+          </div>
+
+          ${!isHost ? `
+          <div style="background: #fef3c7; border-radius: 8px; padding: 15px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
+            <p style="margin: 0; color: #92400e; font-size: 14px;">
+              💡 <strong>Tip:</strong> Te recomendamos unirte 5 minutos antes de la hora programada para verificar tu conexión.
+            </p>
+          </div>
+          ` : ''}
+
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px; margin: 10px 0;">
+              ${isHost
+                ? 'Este email fue generado automáticamente por el sistema de Voice Chat.'
+                : '¿Necesitas reprogramar o cancelar? Responde a este email o contáctanos directamente.'
+              }
+            </p>
+            <p style="color: #9ca3af; font-size: 12px; margin: 20px 0 0 0;">
+              © 2026 Elevate AI. Todos los derechos reservados.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    if (useSmtp && smtpTransport) {
+      await smtpTransport.sendMail({
+        from: SMTP_FROM,
+        to,
+        subject,
+        html
+      });
+      console.log(`Voice chat transcript email sent via SMTP to ${recipient}:`, to);
+      return { success: true };
+    }
+
+    const { data, error } = await resend.emails.send({
+      from: 'Elevate AI <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      html
+    });
+
+    if (error) {
+      console.error(`Error sending voice chat email to ${recipient}:`, error);
+      return { success: false, error };
+    }
+
+    console.log(`Voice chat transcript email sent to ${recipient}:`, data);
+    return { success: true, data };
+  } catch (error) {
+    console.error(`Failed to send voice chat transcript to ${recipient}:`, error);
+    return { success: false, error };
+  }
+}
+
 export async function sendHostNotification(params: {
   name: string;
   email: string;

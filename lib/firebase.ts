@@ -62,6 +62,14 @@ export interface Meeting {
   reminderSent: boolean;
   attended: boolean;
   notes?: string;
+  source?: 'chatbot' | 'voice_chat' | 'manual'; // Source of the meeting
+  conversationId?: string; // Voice chat conversation ID
+  transcript?: Array<{
+    id: string;
+    role: 'user' | 'agent';
+    message: string;
+    timestamp: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -210,5 +218,55 @@ export async function getRecentCalls(limit: number = 50): Promise<Call[]> {
   } catch (error) {
     console.error('[FIREBASE] Error getting recent calls:', error);
     return [];
+  }
+}
+
+// Meeting helper functions
+export async function saveMeeting(meetingData: Omit<Meeting, 'id'>): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const docRef = await db.collection(collections.meetings).add(meetingData);
+    console.log('[FIREBASE] Meeting saved:', docRef.id);
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving meeting:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+export async function getMeetingById(meetingId: string): Promise<Meeting | null> {
+  try {
+    const doc = await db.collection(collections.meetings).doc(meetingId).get();
+
+    if (!doc.exists) {
+      return null;
+    }
+
+    return { id: doc.id, ...doc.data() } as Meeting;
+  } catch (error) {
+    console.error('[FIREBASE] Error getting meeting:', error);
+    return null;
+  }
+}
+
+export async function updateMeeting(
+  meetingId: string,
+  updates: Partial<Meeting>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.meetings).doc(meetingId).update({
+      ...updates,
+      updatedAt: new Date(),
+    });
+    console.log('[FIREBASE] Meeting updated:', meetingId);
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating meeting:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
   }
 }

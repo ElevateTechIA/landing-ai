@@ -55,10 +55,13 @@ export default function VoiceChatPage() {
       const newConvId = `conv_${Date.now()}`;
       setConversationId(newConvId);
     },
-    onDisconnect: () => {
+    onDisconnect: async () => {
       console.log('Disconnected from ElevenLabs');
       setIsCallStarted(false);
       saveConversationToStorage();
+
+      // Process conversation: extract info, create meeting, send emails
+      await processConversation();
     },
     onMessage: (message: any) => {
       console.log('📨 Raw message received:', message);
@@ -107,6 +110,53 @@ export default function VoiceChatPage() {
       console.log('📊 Updated messages array:', updated.length, 'messages');
       return updated;
     });
+  };
+
+  const processConversation = async () => {
+    const currentMessages = messagesRef.current;
+    const currentConvId = conversationIdRef.current;
+
+    if (!currentConvId || currentMessages.length === 0) {
+      console.log('[PROCESS] No messages to process, skipping');
+      return;
+    }
+
+    console.log('[PROCESS] Processing conversation...', {
+      conversationId: currentConvId,
+      messageCount: currentMessages.length,
+    });
+
+    try {
+      const response = await fetch('/api/voice-chat/process-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: currentMessages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp.toString(),
+          })),
+          conversationId: currentConvId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('[PROCESS] Conversation processed successfully:', data);
+        alert(
+          language === 'es'
+            ? `✅ Procesado exitosamente!\n\n${data.data.emailsSent.clientEmail ? 'Email enviado a tu dirección.' : 'Email enviado al host.'}\n\nRevisarás un email con los detalles de la reunión.`
+            : `✅ Processed successfully!\n\n${data.data.emailsSent.clientEmail ? 'Email sent to your address.' : 'Email sent to host.'}\n\nYou'll receive an email with meeting details.`
+        );
+      } else {
+        console.error('[PROCESS] Processing failed:', data);
+      }
+    } catch (error) {
+      console.error('[PROCESS] Error processing conversation:', error);
+      // Don't show error to user, it's already saved locally
+    }
   };
 
   const saveConversationToStorage = () => {
