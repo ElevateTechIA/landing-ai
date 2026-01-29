@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         meetingTopic,
         meetingDate.toISOString(),
         60,
-        'America/Mexico_City'
+        'America/New_York'
       );
       console.log('[VOICE_CHAT_PROCESS] Zoom meeting created:', zoomMeeting.id);
     } catch (error) {
@@ -82,35 +82,35 @@ export async function POST(request: NextRequest) {
     let googleEventId;
     try {
       // Format datetime for Google Calendar API using RFC3339 format with timezone offset
-      let mexicoStartDateTime: string;
+      let meetingStartDateTime: string;
       let timezoneOffset: string;
 
       if (extractedInfo.preferredDate) {
-        // If we have a preferred date with timezone (e.g., "2026-01-30T22:00:00-06:00")
+        // If we have a preferred date with timezone (e.g., "2026-01-30T22:00:00-05:00")
         // Keep the datetime WITH the timezone offset, remove milliseconds if present
-        mexicoStartDateTime = extractedInfo.preferredDate.replace(/\.\d{3}/, '');
+        meetingStartDateTime = extractedInfo.preferredDate.replace(/\.\d{3}/, '');
 
-        // Extract timezone offset (e.g., "-06:00")
-        const offsetMatch = mexicoStartDateTime.match(/([-+]\d{2}:\d{2})$/);
-        timezoneOffset = offsetMatch ? offsetMatch[1] : '-06:00'; // Default to Mexico City offset
+        // Extract timezone offset (e.g., "-05:00" for Eastern Time)
+        const offsetMatch = meetingStartDateTime.match(/([-+]\d{2}:\d{2})$/);
+        timezoneOffset = offsetMatch ? offsetMatch[1] : '-05:00'; // Default to Eastern Time offset
       } else {
-        // Format the date object as ISO string and convert to Mexico timezone with offset
-        // Mexico City is UTC-6 in CST (most of the year) or UTC-5 in CDT
-        const mexicoDate = new Date(meetingDate.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-        const year = mexicoDate.getFullYear();
-        const month = String(mexicoDate.getMonth() + 1).padStart(2, '0');
-        const day = String(mexicoDate.getDate()).padStart(2, '0');
-        const hours = String(mexicoDate.getHours()).padStart(2, '0');
-        const minutes = String(mexicoDate.getMinutes()).padStart(2, '0');
-        const seconds = String(mexicoDate.getSeconds()).padStart(2, '0');
+        // Format the date object as ISO string and convert to Eastern timezone with offset
+        // Eastern Time is UTC-5 in EST (winter) or UTC-4 in EDT (summer)
+        const easternDate = new Date(meetingDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const year = easternDate.getFullYear();
+        const month = String(easternDate.getMonth() + 1).padStart(2, '0');
+        const day = String(easternDate.getDate()).padStart(2, '0');
+        const hours = String(easternDate.getHours()).padStart(2, '0');
+        const minutes = String(easternDate.getMinutes()).padStart(2, '0');
+        const seconds = String(easternDate.getSeconds()).padStart(2, '0');
 
-        timezoneOffset = '-06:00'; // Mexico City standard offset
-        mexicoStartDateTime = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezoneOffset}`;
+        timezoneOffset = '-05:00'; // Eastern Time standard offset
+        meetingStartDateTime = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezoneOffset}`;
       }
 
       // Calculate end time (30 minutes later)
       // Parse the datetime without timezone offset
-      const [datePart, timePartWithOffset] = mexicoStartDateTime.split('T');
+      const [datePart, timePartWithOffset] = meetingStartDateTime.split('T');
       const timePart = timePartWithOffset.replace(/([-+]\d{2}:\d{2})$/, ''); // Remove offset for parsing
       const [hours, minutes, seconds] = timePart.split(':').map(Number);
 
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       const endMinutes = totalMinutes % 60;
 
       // Reconstruct end datetime WITH timezone offset
-      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${timezoneOffset}`;
+      const meetingEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${timezoneOffset}`;
 
       const calendarEvent = {
         summary: meetingTopic,
@@ -138,10 +138,10 @@ Link de Zoom: ${zoomMeeting.join_url}
 Conversation ID: ${conversationId}
         `.trim(),
         start: {
-          dateTime: mexicoStartDateTime, // RFC3339 with timezone offset
+          dateTime: meetingStartDateTime, // RFC3339 with timezone offset
         },
         end: {
-          dateTime: mexicoEndDateTime, // RFC3339 with timezone offset
+          dateTime: meetingEndDateTime, // RFC3339 with timezone offset
         },
         attendees: extractedInfo.email ? [{ email: extractedInfo.email }] : [],
       };
@@ -205,14 +205,14 @@ Conversation ID: ${conversationId}
     };
 
     // Format meeting time for display
-    const formattedTime = meetingDate.toLocaleString('es-MX', {
+    const formattedTime = meetingDate.toLocaleString('es-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'America/Mexico_City',
+      timeZone: 'America/New_York',
     });
 
     try {
@@ -331,7 +331,7 @@ INSTRUCCIONES CRÍTICAS:
    - Si dice "mañana" = añade 1 día a la fecha actual
    - Si dice "10 pm", "10 de la noche", "diez de la noche" = 22:00 horas
    - Si dice "10 am", "10 de la mañana", "diez de la mañana" = 10:00 horas
-   - Usa la zona horaria America/Mexico_City
+   - Usa la zona horaria America/New_York (Eastern Time)
    - Formato ISO: YYYY-MM-DDTHH:mm:ss.000Z
 
 Extrae la siguiente información:
@@ -353,7 +353,7 @@ Ejemplo:
   "phone": "305 322 0270",
   "company": "Mi Startup",
   "purpose": "Consultoría de desarrollo web",
-  "preferredDate": "2026-01-30T22:00:00.000Z"
+  "preferredDate": "2026-01-30T22:00:00-05:00"
 }`;
 
   try {
