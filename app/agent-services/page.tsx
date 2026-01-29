@@ -4,6 +4,7 @@ import { useConversation } from '@elevenlabs/react';
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import CallButton from '../components/CallButton';
+import Image from 'next/image';
 
 export default function AgentServicesPage() {
   const { language } = useLanguage();
@@ -295,7 +296,7 @@ export default function AgentServicesPage() {
                     </svg>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold">Andrea</h2>
+                    <h2 className="text-xl font-bold">Cesar</h2>
                     <p className="text-blue-100 text-sm">
                       {isCallStarted
                         ? (language === 'es' ? 'En llamada...' : 'On call...')
@@ -310,17 +311,19 @@ export default function AgentServicesPage() {
               <div className="p-8">
                 {!isCallStarted ? (
                   <div className="text-center space-y-6">
-                    <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
-                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-200 to-blue-200 flex items-center justify-center">
-                        <svg className="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
+                    <div className="w-32 h-32 mx-auto rounded-full overflow-hidden flex items-center justify-center">
+                      <Image
+                        src="/images/cesarvega.png"
+                        alt="Cesar"
+                        width={128}
+                        height={128}
+                        className="object-cover w-full h-full"
+                      />
                     </div>
 
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        {language === 'es' ? '¡Hola! Soy Andrea' : 'Hi! I\'m Andrea'}
+                        {language === 'es' ? '¡Hola! Soy Cesar' : 'Hi! I\'m Cesar'}
                       </h3>
                       <p className="text-gray-600">
                         {language === 'es'
@@ -353,12 +356,14 @@ export default function AgentServicesPage() {
                 ) : (
                   <div className="text-center space-y-6">
                     <div className="relative">
-                      <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center animate-pulse">
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-200 to-blue-200 flex items-center justify-center">
-                          <svg className="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                          </svg>
-                        </div>
+                      <div className="w-32 h-32 mx-auto rounded-full overflow-hidden flex items-center justify-center animate-pulse">
+                        <Image
+                          src="/images/cesarvega.png"
+                          alt="Cesar"
+                          width={128}
+                          height={128}
+                          className="object-cover w-full h-full"
+                        />
                       </div>
 
                       {/* Animated rings */}

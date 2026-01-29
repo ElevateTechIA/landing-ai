@@ -3,6 +3,7 @@
 import { useConversation } from '@elevenlabs/react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import Image from 'next/image';
 
 interface Message {
   id: string;
@@ -142,6 +143,22 @@ export default function VoiceChatPage() {
         }),
       });
 
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          console.error('[PROCESS] Server returned error:', errorData);
+        } else {
+          // Server returned HTML error page
+          const errorText = await response.text();
+          console.error('[PROCESS] Server returned HTML error (status:', response.status, ')');
+          console.error('[PROCESS] Error text preview:', errorText.substring(0, 500));
+        }
+        console.log('[PROCESS] Conversation saved locally but server processing failed');
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -156,6 +173,7 @@ export default function VoiceChatPage() {
       }
     } catch (error) {
       console.error('[PROCESS] Error processing conversation:', error);
+      console.log('[PROCESS] Conversation saved locally but server processing failed');
       // Don't show error to user, it's already saved locally
     }
   };
@@ -330,7 +348,7 @@ export default function VoiceChatPage() {
                     </svg>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold">Andrea</h2>
+                    <h2 className="text-xl font-bold">Cesar</h2>
                     <p className="text-purple-100 text-sm">
                       {isCallStarted
                         ? (language === 'es' ? 'En llamada...' : 'On call...')
@@ -346,10 +364,14 @@ export default function VoiceChatPage() {
                 {!isCallStarted ? (
                   <div className="space-y-4">
                     <div className="text-center">
-                      <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center mb-4">
-                        <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+                      <div className="w-24 h-24 mx-auto rounded-full overflow-hidden flex items-center justify-center mb-4">
+                        <Image
+                          src="/images/cesarvega.png"
+                          alt="Cesar"
+                          width={96}
+                          height={96}
+                          className="object-cover w-full h-full"
+                        />
                       </div>
                       <p className="text-gray-600 text-sm mb-4">
                         {language === 'es'
@@ -383,10 +405,14 @@ export default function VoiceChatPage() {
                   <div className="space-y-4">
                     <div className="text-center">
                       <div className="relative mb-4">
-                        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center animate-pulse">
-                          <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                          </svg>
+                        <div className="w-24 h-24 mx-auto rounded-full overflow-hidden flex items-center justify-center animate-pulse">
+                          <Image
+                            src="/images/cesarvega.png"
+                            alt="Cesar"
+                            width={96}
+                            height={96}
+                            className="object-cover w-full h-full"
+                          />
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="w-32 h-32 rounded-full border-4 border-green-300 animate-ping opacity-20" />
@@ -538,7 +564,7 @@ export default function VoiceChatPage() {
                             <span className="text-xs font-semibold opacity-75">
                               {msg.role === 'user'
                                 ? (language === 'es' ? 'Tú' : 'You')
-                                : 'Andrea'
+                                : 'Cesar'
                               }
                             </span>
                             <span className="text-xs opacity-50">
