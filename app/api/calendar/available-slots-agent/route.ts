@@ -29,23 +29,33 @@ export async function GET(request: NextRequest) {
     const BUSINESS_END_HOUR = 18; // 6 PM
     const MEETING_DURATION_MINUTES = 30;
 
-    // Determine starting date
-    let startDate = new Date();
+    // Determine starting date in Eastern Time
+    const now = new Date();
+
+    // Get current time in Eastern Time
+    const nowInET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+
+    let startDate: Date;
+
     if (desiredDate) {
+      // Parse the desired date
       const parsed = new Date(desiredDate);
       if (!isNaN(parsed.getTime())) {
         startDate = parsed;
+      } else {
+        startDate = new Date(nowInET);
       }
+    } else {
+      startDate = new Date(nowInET);
     }
 
     // If the desired date is in the past, start from tomorrow
-    const now = new Date();
-    if (startDate < now) {
-      startDate = new Date(now);
+    if (startDate < nowInET) {
+      startDate = new Date(nowInET);
       startDate.setDate(startDate.getDate() + 1);
     }
 
-    // Set to business start hour
+    // Set to business start hour (8 AM Eastern Time)
     startDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
 
     const availableSlots: Array<{
@@ -87,8 +97,8 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          // Skip slots in the past
-          if (slotStart < now) {
+          // Skip slots in the past (compare in Eastern Time)
+          if (slotStart < nowInET) {
             continue;
           }
 
