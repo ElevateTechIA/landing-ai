@@ -5,13 +5,27 @@ import { useState } from 'react';
 export default function TestEmailPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  // Initialize with a date in Eastern Time
+  const getDefaultDateTime = () => {
+    const now = new Date();
+    now.setDate(now.getDate() + 1); // Tomorrow
+    now.setHours(14, 0, 0, 0); // 2 PM
+    // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const [formData, setFormData] = useState({
     clientEmail: 'cesarvega.col@gmail.com',
     clientName: 'César Vega',
     clientPhone: '305 322 0270',
     clientCompany: 'Mi Empresa',
     purpose: 'Consultoría de desarrollo web y aplicaciones móviles',
-    meetingDateTime: '2026-01-30T22:00:00-05:00', // 10 PM Eastern Time (EST = UTC-5)
+    meetingDateTime: getDefaultDateTime(),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,12 +34,18 @@ export default function TestEmailPage() {
     setResult(null);
 
     try {
+      // Convert datetime-local to ISO with Eastern Time offset
+      const isoDateTime = formData.meetingDateTime + ':00-05:00'; // Add seconds and ET offset
+
       const response = await fetch('/api/voice-chat/test-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          meetingDateTime: isoDateTime,
+        }),
       });
 
       const data = await response.json();
@@ -115,28 +135,27 @@ export default function TestEmailPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fecha y Hora (Formato ISO con Zona Horaria Eastern Time)
+                Fecha y Hora de la Reunión (Eastern Time)
               </label>
               <input
-                type="text"
+                type="datetime-local"
                 value={formData.meetingDateTime}
                 onChange={(e) => setFormData({
                   ...formData,
                   meetingDateTime: e.target.value
                 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                placeholder="2026-01-30T22:00:00-05:00"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
               <div className="mt-2 p-3 bg-blue-50 rounded-lg">
                 <p className="text-xs text-blue-900 mb-2">
-                  <strong>Formato:</strong> YYYY-MM-DDTHH:mm:ss-05:00
+                  <strong>⏰ Zona Horaria:</strong> Eastern Time (ET)
                 </p>
                 <p className="text-xs text-blue-700 mb-2">
-                  El valor actual: <code className="bg-white px-2 py-0.5 rounded">{formData.meetingDateTime}</code>
+                  Selecciona la fecha y hora que será enviada al calendario
                 </p>
                 <p className="text-xs text-green-700">
-                  Ejemplo: <code className="bg-white px-2 py-0.5 rounded">2026-01-30T22:00:00-05:00</code> = 30 de enero 2026, 10:00 PM (Eastern Time)
+                  💡 El sistema automáticamente agregará el offset de timezone (-05:00)
                 </p>
               </div>
             </div>
