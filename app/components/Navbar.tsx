@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { scrollToSection } from '../utils/scroll';
@@ -63,18 +64,18 @@ export default function Navbar() {
             >
               Inicio
             </button>
-            <button
-              onClick={() => scrollToSection('services')}
+            <Link
+              href="/agent-services"
               className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-sm lg:text-base"
             >
-              Servicios
-            </button>
-            <button
-              onClick={() => scrollToSection('process')}
+              Agente AI
+            </Link>
+            <Link
+              href="/voice-chat"
               className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-sm lg:text-base"
             >
-              Proceso
-            </button>
+              Voice Chat
+            </Link>
             <button
               onClick={() => scrollToSection('contact-form')}
               className="bg-blue-600 text-white px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-blue-700 transition-all hover:shadow-lg font-medium text-sm lg:text-base"
