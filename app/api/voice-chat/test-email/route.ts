@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendVoiceChatTranscriptEmail } from '@/lib/email';
 import { createZoomMeeting } from '@/lib/zoom';
-import { createCalendarEvent } from '@/lib/google-calendar';
+import { createCalendarEvent, checkAvailability } from '@/lib/google-calendar';
 
 /**
  * API Endpoint: Test Voice Chat Email
@@ -82,6 +82,36 @@ export async function POST(request: NextRequest) {
       // Reconstruct end datetime WITH timezone offset
       const meetingEndDateTimeWithOffset = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${timezoneOffset}`;
 
+      // Use the configured Google Calendar ID (elevatetechagency@gmail.com)
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
+      // CHECK AVAILABILITY FIRST
+      const startDate = new Date(meetingDateTimeWithOffset);
+      const endDate = new Date(meetingEndDateTimeWithOffset);
+
+      console.log('[TEST_EMAIL] Checking availability:', {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        calendarId,
+      });
+
+      const isAvailable = await checkAvailability(startDate, endDate, calendarId);
+
+      if (!isAvailable) {
+        console.error('[TEST_EMAIL] Time slot is NOT available - conflict detected');
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'El horario seleccionado ya está ocupado',
+            message: 'This time slot is already taken. Please choose a different time.',
+            conflictDetected: true,
+          },
+          { status: 409 } // 409 Conflict
+        );
+      }
+
+      console.log('[TEST_EMAIL] Time slot is available, creating event...');
+
       const calendarEvent = {
         summary: meetingTopic,
         description: `
@@ -107,8 +137,6 @@ TEST EMAIL
         attendees: [{ email: clientEmail }],
       };
 
-      // Use the configured Google Calendar ID (elevatetechagency@gmail.com)
-      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
       const createdEvent = await createCalendarEvent(calendarEvent, calendarId);
       googleEventId = createdEvent.id;
       console.log('[TEST_EMAIL] Google Calendar event created:', googleEventId, 'in calendar:', calendarId);

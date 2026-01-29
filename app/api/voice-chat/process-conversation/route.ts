@@ -146,12 +146,34 @@ Conversation ID: ${conversationId}
         attendees: extractedInfo.email ? [{ email: extractedInfo.email }] : [],
       };
 
-      console.log('[VOICE_CHAT_PROCESS] Creating calendar event:', JSON.stringify(calendarEvent, null, 2));
       // Use the configured Google Calendar ID (elevatetechagency@gmail.com)
       const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
-      const createdEvent = await createCalendarEvent(calendarEvent, calendarId);
-      googleEventId = createdEvent.id;
-      console.log('[VOICE_CHAT_PROCESS] Google Calendar event created successfully:', googleEventId, 'in calendar:', calendarId);
+
+      // CHECK AVAILABILITY FIRST
+      const startDate = new Date(meetingStartDateTime);
+      const endDate = new Date(meetingEndDateTime);
+
+      console.log('[VOICE_CHAT_PROCESS] Checking availability:', {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        calendarId,
+      });
+
+      const isAvailable = await checkAvailability(startDate, endDate, calendarId);
+
+      if (!isAvailable) {
+        console.error('[VOICE_CHAT_PROCESS] Time slot is NOT available - conflict detected');
+        // Don't fail the whole process, but log and continue without calendar event
+        // The getNextAvailableSlot should have prevented this, but as a safety check
+        console.warn('[VOICE_CHAT_PROCESS] Skipping calendar event creation due to conflict');
+      } else {
+        console.log('[VOICE_CHAT_PROCESS] Time slot is available, creating event...');
+        console.log('[VOICE_CHAT_PROCESS] Creating calendar event:', JSON.stringify(calendarEvent, null, 2));
+
+        const createdEvent = await createCalendarEvent(calendarEvent, calendarId);
+        googleEventId = createdEvent.id;
+        console.log('[VOICE_CHAT_PROCESS] Google Calendar event created successfully:', googleEventId, 'in calendar:', calendarId);
+      }
     } catch (error) {
       console.error('[VOICE_CHAT_PROCESS] Calendar creation failed:', error);
       console.error('[VOICE_CHAT_PROCESS] Full calendar error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
