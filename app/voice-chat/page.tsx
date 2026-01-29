@@ -28,6 +28,24 @@ export default function VoiceChatPage() {
   const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Use refs to maintain latest values for saving
+  const messagesRef = useRef<Message[]>([]);
+  const conversationIdRef = useRef<string>('');
+  const startTimeRef = useRef<Date | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+
+  useEffect(() => {
+    startTimeRef.current = startTime;
+  }, [startTime]);
+
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs');
@@ -43,23 +61,32 @@ export default function VoiceChatPage() {
       saveConversationToStorage();
     },
     onMessage: (message: any) => {
-      console.log('Message:', message);
+      console.log('📨 Raw message received:', message);
+      console.log('📨 Message keys:', Object.keys(message));
+      console.log('📨 Message type:', typeof message);
 
       // Add message to chat based on message structure
       // User transcript
       if ('user_transcript' in message && message.user_transcript) {
+        console.log('✅ Adding USER message:', message.user_transcript);
         addMessage('user', message.user_transcript);
       }
       // Agent response
       else if ('agent_response' in message && message.agent_response) {
+        console.log('✅ Adding AGENT message:', message.agent_response);
         addMessage('agent', message.agent_response);
       }
       // Alternative message structure
       else if ('message' in message && message.source === 'ai') {
+        console.log('✅ Adding AGENT message (alt format):', message.message);
         addMessage('agent', message.message);
       }
       else if ('message' in message && message.source === 'user') {
+        console.log('✅ Adding USER message (alt format):', message.message);
         addMessage('user', message.message);
+      }
+      else {
+        console.warn('⚠️ Message format not recognized. Skipping:', message);
       }
     },
     onError: (error) => {
@@ -74,29 +101,39 @@ export default function VoiceChatPage() {
       message: text,
       timestamp: new Date(),
     };
-    setMessages(prev => [...prev, newMessage]);
+    console.log('➕ Adding message to state:', newMessage);
+    setMessages(prev => {
+      const updated = [...prev, newMessage];
+      console.log('📊 Updated messages array:', updated.length, 'messages');
+      return updated;
+    });
   };
 
   const saveConversationToStorage = () => {
+    // Use refs instead of state to avoid stale closure
+    const currentMessages = messagesRef.current;
+    const currentConvId = conversationIdRef.current;
+    const currentStartTime = startTimeRef.current;
+
     console.log('💾 Attempting to save conversation...', {
-      conversationId,
-      messagesLength: messages.length,
-      hasMessages: messages.length > 0,
-      hasConvId: !!conversationId,
+      conversationId: currentConvId,
+      messagesLength: currentMessages.length,
+      hasMessages: currentMessages.length > 0,
+      hasConvId: !!currentConvId,
     });
 
-    if (!conversationId || messages.length === 0) {
+    if (!currentConvId || currentMessages.length === 0) {
       console.error('❌ Cannot save: conversationId or messages missing', {
-        conversationId,
-        messagesLength: messages.length,
+        conversationId: currentConvId,
+        messagesLength: currentMessages.length,
       });
       return;
     }
 
     const conversationHistory: ConversationHistory = {
-      conversationId,
-      messages,
-      startedAt: startTime || new Date(),
+      conversationId: currentConvId,
+      messages: currentMessages,
+      startedAt: currentStartTime || new Date(),
       endedAt: new Date(),
     };
 
@@ -123,8 +160,8 @@ export default function VoiceChatPage() {
       // Show success message
       alert(
         language === 'es'
-          ? `✅ Conversación guardada! (${messages.length} mensajes)\n\nRevisa: DevTools > Application > Local Storage`
-          : `✅ Conversation saved! (${messages.length} messages)\n\nCheck: DevTools > Application > Local Storage`
+          ? `✅ Conversación guardada! (${currentMessages.length} mensajes)\n\nRevisa: DevTools > Application > Local Storage`
+          : `✅ Conversation saved! (${currentMessages.length} messages)\n\nCheck: DevTools > Application > Local Storage`
       );
     } catch (error) {
       console.error('❌ Error saving to localStorage:', error);
