@@ -325,7 +325,8 @@ async function extractInformationFromConversation(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  // Use gemini-2.5-flash which is currently available
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   // Format conversation for AI
   const conversationText = messages
