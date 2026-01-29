@@ -111,11 +111,17 @@ Conversation ID: ${conversationId}
         attendees: extractedInfo.email ? [{ email: extractedInfo.email }] : [],
       };
 
+      console.log('[VOICE_CHAT_PROCESS] Creating calendar event:', JSON.stringify(calendarEvent, null, 2));
       const createdEvent = await createCalendarEvent(calendarEvent);
       googleEventId = createdEvent.id;
-      console.log('[VOICE_CHAT_PROCESS] Google Calendar event created:', googleEventId);
+      console.log('[VOICE_CHAT_PROCESS] Google Calendar event created successfully:', googleEventId);
     } catch (error) {
       console.error('[VOICE_CHAT_PROCESS] Calendar creation failed:', error);
+      console.error('[VOICE_CHAT_PROCESS] Full calendar error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      if (error instanceof Error) {
+        console.error('[VOICE_CHAT_PROCESS] Error message:', error.message);
+        console.error('[VOICE_CHAT_PROCESS] Error stack:', error.stack);
+      }
       // Continue without calendar event
     }
 
@@ -195,6 +201,7 @@ Conversation ID: ${conversationId}
 
     // Send to client if email is available
     if (extractedInfo.email) {
+      console.log('[VOICE_CHAT_PROCESS] Sending email to client:', extractedInfo.email);
       try {
         await sendVoiceChatTranscriptEmail({
           to: extractedInfo.email,
@@ -210,10 +217,13 @@ Conversation ID: ${conversationId}
           conversationId,
         });
         emailResults.clientEmail = true;
-        console.log('[VOICE_CHAT_PROCESS] Client email sent');
+        console.log('[VOICE_CHAT_PROCESS] Client email sent successfully');
       } catch (error) {
         console.error('[VOICE_CHAT_PROCESS] Client email failed:', error);
       }
+    } else {
+      console.warn('[VOICE_CHAT_PROCESS] No client email found, skipping client email');
+      console.warn('[VOICE_CHAT_PROCESS] Extracted info:', JSON.stringify(extractedInfo, null, 2));
     }
 
     // 7. Return success response
@@ -263,43 +273,68 @@ async function extractInformationFromConversation(
     .map((msg) => `${msg.role === 'user' ? 'Cliente' : 'Agente'}: ${msg.message}`)
     .join('\n');
 
-  const prompt = `Analiza la siguiente conversación de un chat de voz y extrae la información del cliente en formato JSON.
+  // Get current date for relative date parsing
+  const now = new Date();
+  const currentDateInfo = `Fecha y hora actual: ${now.toISOString()} (${now.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })})`;
+
+  const prompt = `Analiza CUIDADOSAMENTE la siguiente conversación de un chat de voz y extrae TODA la información del cliente que se mencione.
+
+${currentDateInfo}
 
 Conversación:
 ${conversationText}
 
-Extrae la siguiente información si está disponible:
+INSTRUCCIONES CRÍTICAS:
+1. Lee TODA la conversación palabra por palabra. La información puede estar en cualquier mensaje.
+2. Extrae CADA dato que el cliente mencione sobre sí mismo, sin omitir nada.
+3. Para el EMAIL: busca cuidadosamente cualquier correo electrónico que mencione el cliente. Puede estar escrito con letras (ej: "ce-sa-ar-ve-ga punto ce-o-el arroba gmail punto com" = cesarvega.col@gmail.com). DEBE contener @.
+4. Para el NOMBRE: extrae el nombre completo exactamente como lo dice (ej: "mi nombre es César Vega", "soy César", etc.)
+5. Para TELÉFONO: extrae el número completo incluyendo código de área
+6. Para FECHAS Y HORAS:
+   - Si dice "mañana" = añade 1 día a la fecha actual
+   - Si dice "10 pm", "10 de la noche", "diez de la noche" = 22:00 horas
+   - Si dice "10 am", "10 de la mañana", "diez de la mañana" = 10:00 horas
+   - Usa la zona horaria America/Mexico_City
+   - Formato ISO: YYYY-MM-DDTHH:mm:ss.000Z
+
+Extrae la siguiente información:
 - name: Nombre completo del cliente
-- email: Dirección de correo electrónico (debe tener formato válido con @)
-- phone: Número de teléfono
-- company: Nombre de la empresa o proyecto
-- purpose: Propósito de la consulta o servicio requerido
-- preferredDate: Fecha y hora preferida para reunión (en formato ISO si se menciona)
+- email: Email exactamente como se menciona (con @)
+- phone: Número completo con código de área
+- company: Empresa o proyecto si lo menciona
+- purpose: Propósito detallado de la consulta
+- preferredDate: Fecha y hora en formato ISO completo
 
-Responde SOLO con un objeto JSON válido. Si algún campo no está presente en la conversación, omítelo del JSON.
-No incluyas texto adicional, solo el JSON.
+REGLA DE ORO: Si el cliente dice algo sobre sí mismo, DEBES extraerlo. No omitas información.
 
-Ejemplo de respuesta:
+Responde SOLO con un objeto JSON válido. No incluyas explicaciones, solo el JSON puro.
+
+Ejemplo:
 {
-  "name": "Juan Pérez",
-  "email": "juan@example.com",
-  "phone": "+52 1 234 567 8900",
-  "company": "Acme Corp",
-  "purpose": "Consultoría de desarrollo web"
+  "name": "César Vega",
+  "email": "cesarvega.col@gmail.com",
+  "phone": "305 322 0270",
+  "company": "Mi Startup",
+  "purpose": "Consultoría de desarrollo web",
+  "preferredDate": "2026-01-30T22:00:00.000Z"
 }`;
 
   try {
     const result = await model.generateContent(prompt);
     const response = result.response.text();
 
+    console.log('[VOICE_CHAT_PROCESS] Raw AI response:', response);
+
     // Extract JSON from response (remove markdown code blocks if present)
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.warn('[VOICE_CHAT_PROCESS] No JSON found in AI response');
+      console.warn('[VOICE_CHAT_PROCESS] Full response was:', response);
       return {};
     }
 
     const extractedInfo = JSON.parse(jsonMatch[0]);
+    console.log('[VOICE_CHAT_PROCESS] Parsed extracted info:', JSON.stringify(extractedInfo, null, 2));
     return extractedInfo;
   } catch (error) {
     console.error('[VOICE_CHAT_PROCESS] Error extracting info with AI:', error);
