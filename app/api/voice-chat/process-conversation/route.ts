@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     let googleEventId;
     try {
       const endDate = new Date(meetingDate);
-      endDate.setHours(endDate.getHours() + 1);
+      endDate.setMinutes(endDate.getMinutes() + 30); // 30 minutes duration
 
       const calendarEvent = {
         summary: meetingTopic,
@@ -112,9 +112,11 @@ Conversation ID: ${conversationId}
       };
 
       console.log('[VOICE_CHAT_PROCESS] Creating calendar event:', JSON.stringify(calendarEvent, null, 2));
-      const createdEvent = await createCalendarEvent(calendarEvent);
+      // Use the configured Google Calendar ID (elevatetechagency@gmail.com)
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+      const createdEvent = await createCalendarEvent(calendarEvent, calendarId);
       googleEventId = createdEvent.id;
-      console.log('[VOICE_CHAT_PROCESS] Google Calendar event created successfully:', googleEventId);
+      console.log('[VOICE_CHAT_PROCESS] Google Calendar event created successfully:', googleEventId, 'in calendar:', calendarId);
     } catch (error) {
       console.error('[VOICE_CHAT_PROCESS] Calendar creation failed:', error);
       console.error('[VOICE_CHAT_PROCESS] Full calendar error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));

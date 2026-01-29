@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
 
     // Parse meeting date
     const meetingDate = new Date(meetingDateTime);
+    console.log('[TEST_EMAIL] Parsed meeting date:', {
+      input: meetingDateTime,
+      parsedUTC: meetingDate.toISOString(),
+      parsedMexico: meetingDate.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
+    });
 
     // Create Zoom meeting
     const meetingTopic = `Consulta de Voz - ${clientName}`;
@@ -53,7 +58,7 @@ export async function POST(request: NextRequest) {
     let googleEventId;
     try {
       const endDate = new Date(meetingDate);
-      endDate.setHours(endDate.getHours() + 1);
+      endDate.setMinutes(endDate.getMinutes() + 30); // 30 minutes duration
 
       const calendarEvent = {
         summary: meetingTopic,
@@ -82,9 +87,11 @@ TEST EMAIL
         attendees: [{ email: clientEmail }],
       };
 
-      const createdEvent = await createCalendarEvent(calendarEvent);
+      // Use the configured Google Calendar ID (elevatetechagency@gmail.com)
+      const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+      const createdEvent = await createCalendarEvent(calendarEvent, calendarId);
       googleEventId = createdEvent.id;
-      console.log('[TEST_EMAIL] Google Calendar event created:', googleEventId);
+      console.log('[TEST_EMAIL] Google Calendar event created:', googleEventId, 'in calendar:', calendarId);
     } catch (error) {
       console.error('[TEST_EMAIL] Calendar creation failed:', error);
       // Log the full error for debugging

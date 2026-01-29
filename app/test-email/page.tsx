@@ -11,7 +11,7 @@ export default function TestEmailPage() {
     clientPhone: '305 322 0270',
     clientCompany: 'Mi Empresa',
     purpose: 'Consultoría de desarrollo web y aplicaciones móviles',
-    meetingDateTime: '2026-01-30T22:00:00.000Z', // 10 PM del 30 de enero
+    meetingDateTime: '2026-01-30T22:00:00-06:00', // 10 PM hora de México (CST/CDT = UTC-6)
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,21 +115,30 @@ export default function TestEmailPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fecha y Hora de la Reunión (ISO Format)
+                Fecha y Hora (Formato ISO con Zona Horaria de México)
               </label>
               <input
-                type="datetime-local"
-                value={formData.meetingDateTime.slice(0, 16)}
+                type="text"
+                value={formData.meetingDateTime}
                 onChange={(e) => setFormData({
                   ...formData,
-                  meetingDateTime: new Date(e.target.value).toISOString()
+                  meetingDateTime: e.target.value
                 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                placeholder="2026-01-30T22:00:00-06:00"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                ISO: {formData.meetingDateTime}
-              </p>
+              <div className="mt-2 p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-900 mb-2">
+                  <strong>Formato:</strong> YYYY-MM-DDTHH:mm:ss-06:00
+                </p>
+                <p className="text-xs text-blue-700 mb-2">
+                  El valor actual: <code className="bg-white px-2 py-0.5 rounded">{formData.meetingDateTime}</code>
+                </p>
+                <p className="text-xs text-green-700">
+                  Ejemplo: <code className="bg-white px-2 py-0.5 rounded">2026-01-30T22:00:00-06:00</code> = 30 de enero 2026, 10:00 PM (hora de México)
+                </p>
+              </div>
             </div>
 
             <button
