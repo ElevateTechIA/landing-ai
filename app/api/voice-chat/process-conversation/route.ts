@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createZoomMeeting } from '@/lib/zoom';
-import { createCalendarEvent } from '@/lib/google-calendar';
+import { createCalendarEvent, checkAvailability } from '@/lib/google-calendar';
 import { saveMeeting } from '@/lib/firebase';
 import { sendVoiceChatTranscriptEmail } from '@/lib/email';
 
@@ -328,11 +328,14 @@ INSTRUCCIONES CRÍTICAS:
 4. Para el NOMBRE: extrae el nombre completo exactamente como lo dice (ej: "mi nombre es César Vega", "soy César", etc.)
 5. Para TELÉFONO: extrae el número completo incluyendo código de área
 6. Para FECHAS Y HORAS:
+   - HORARIO DE NEGOCIOS: Solo acepta citas entre 8:00 AM y 6:00 PM (Eastern Time)
+   - Si el cliente solicita una hora fuera de este rango, sugiere la siguiente disponible dentro del horario
    - Si dice "mañana" = añade 1 día a la fecha actual
-   - Si dice "10 pm", "10 de la noche", "diez de la noche" = 22:00 horas
-   - Si dice "10 am", "10 de la mañana", "diez de la mañana" = 10:00 horas
+   - Si dice "10 pm", "10 de la noche", "diez de la noche" = 22:00 horas (FUERA DE HORARIO - no aceptar)
+   - Si dice "10 am", "10 de la mañana", "diez de la mañana" = 10:00 horas (aceptable)
+   - Si dice "3 pm", "3 de la tarde", "tres de la tarde" = 15:00 horas (aceptable)
    - Usa la zona horaria America/New_York (Eastern Time)
-   - Formato ISO: YYYY-MM-DDTHH:mm:ss.000Z
+   - Formato ISO: YYYY-MM-DDTHH:mm:ss-05:00 (con offset de timezone)
 
 Extrae la siguiente información:
 - name: Nombre completo del cliente
@@ -353,7 +356,7 @@ Ejemplo:
   "phone": "305 322 0270",
   "company": "Mi Startup",
   "purpose": "Consultoría de desarrollo web",
-  "preferredDate": "2026-01-30T22:00:00-05:00"
+  "preferredDate": "2026-01-30T14:00:00-05:00"
 }`;
 
   try {
@@ -380,27 +383,79 @@ Ejemplo:
 }
 
 /**
- * Gets the next available time slot (next business day at 10 AM)
+ * Gets the next available time slot between 8 AM - 6 PM
+ * Checks host's Google Calendar for conflicts
  */
 async function getNextAvailableSlot(): Promise<Date> {
   const now = new Date();
-  const nextSlot = new Date(now);
+  const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
-  // Add 1 day
-  nextSlot.setDate(nextSlot.getDate() + 1);
+  // Business hours: 8 AM to 6 PM Eastern Time
+  const BUSINESS_START_HOUR = 8;
+  const BUSINESS_END_HOUR = 18; // 6 PM
+  const MEETING_DURATION_MINUTES = 30;
 
-  // Set to 10:00 AM
-  nextSlot.setHours(10, 0, 0, 0);
+  // Start checking from tomorrow
+  let candidateDate = new Date(now);
+  candidateDate.setDate(candidateDate.getDate() + 1);
+  candidateDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
 
-  // If it's weekend, move to Monday
-  const dayOfWeek = nextSlot.getDay();
-  if (dayOfWeek === 0) { // Sunday
-    nextSlot.setDate(nextSlot.getDate() + 1);
-  } else if (dayOfWeek === 6) { // Saturday
-    nextSlot.setDate(nextSlot.getDate() + 2);
+  // Try to find available slot within next 30 days
+  const maxDaysToCheck = 30;
+  let daysChecked = 0;
+
+  while (daysChecked < maxDaysToCheck) {
+    // Skip weekends
+    const dayOfWeek = candidateDate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      candidateDate.setDate(candidateDate.getDate() + 1);
+      candidateDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
+      daysChecked++;
+      continue;
+    }
+
+    // Check each hour from 8 AM to 5:30 PM (last slot ends at 6 PM)
+    for (let hour = BUSINESS_START_HOUR; hour < BUSINESS_END_HOUR; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const slotStart = new Date(candidateDate);
+        slotStart.setHours(hour, minute, 0, 0);
+
+        const slotEnd = new Date(slotStart);
+        slotEnd.setMinutes(slotEnd.getMinutes() + MEETING_DURATION_MINUTES);
+
+        // Check if slot end is within business hours
+        if (slotEnd.getHours() > BUSINESS_END_HOUR ||
+            (slotEnd.getHours() === BUSINESS_END_HOUR && slotEnd.getMinutes() > 0)) {
+          continue; // Skip this slot as it would end after business hours
+        }
+
+        // Check if slot is available in Google Calendar
+        try {
+          const isAvailable = await checkAvailability(slotStart, slotEnd, calendarId);
+          if (isAvailable) {
+            console.log('[GET_NEXT_SLOT] Found available slot:', slotStart.toISOString());
+            return slotStart;
+          }
+        } catch (error) {
+          console.error('[GET_NEXT_SLOT] Error checking availability:', error);
+          // If there's an error checking calendar, return this slot anyway
+          return slotStart;
+        }
+      }
+    }
+
+    // Move to next day
+    candidateDate.setDate(candidateDate.getDate() + 1);
+    candidateDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
+    daysChecked++;
   }
 
-  return nextSlot;
+  // Fallback: return tomorrow at 10 AM if no slot found
+  const fallback = new Date(now);
+  fallback.setDate(fallback.getDate() + 1);
+  fallback.setHours(10, 0, 0, 0);
+  console.log('[GET_NEXT_SLOT] No available slot found, using fallback:', fallback.toISOString());
+  return fallback;
 }
 
 // Handle OPTIONS for CORS preflight
