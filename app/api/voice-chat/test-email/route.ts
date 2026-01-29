@@ -26,12 +26,28 @@ export async function POST(request: NextRequest) {
       meetingDateTime,
     });
 
-    // Parse meeting date
+    // Parse meeting date and format for Google Calendar
+    // Google Calendar expects datetime without timezone suffix when timeZone is specified
+    // Input: 2026-01-30T22:00:00-06:00 means 10 PM Mexico time
     const meetingDate = new Date(meetingDateTime);
+
+    // Format as local Mexico time (YYYY-MM-DDTHH:mm:ss) without Z or timezone offset
+    const mexicoDateTime = meetingDate.toLocaleString('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).replace(', ', 'T').replace(/\//g, '-');
+
     console.log('[TEST_EMAIL] Parsed meeting date:', {
       input: meetingDateTime,
-      parsedUTC: meetingDate.toISOString(),
-      parsedMexico: meetingDate.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
+      parsedDate: meetingDate.toISOString(),
+      mexicoDateTime,
+      displayTime: meetingDate.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
     });
 
     // Create Zoom meeting
@@ -60,6 +76,18 @@ export async function POST(request: NextRequest) {
       const endDate = new Date(meetingDate);
       endDate.setMinutes(endDate.getMinutes() + 30); // 30 minutes duration
 
+      // Format end time the same way
+      const mexicoEndDateTime = endDate.toLocaleString('en-CA', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).replace(', ', 'T').replace(/\//g, '-');
+
       const calendarEvent = {
         summary: meetingTopic,
         description: `
@@ -77,11 +105,11 @@ Link de Zoom: ${zoomMeeting.join_url}
 TEST EMAIL
         `.trim(),
         start: {
-          dateTime: meetingDate.toISOString(),
+          dateTime: mexicoDateTime,
           timeZone: 'America/Mexico_City',
         },
         end: {
-          dateTime: endDate.toISOString(),
+          dateTime: mexicoEndDateTime,
           timeZone: 'America/Mexico_City',
         },
         attendees: [{ email: clientEmail }],

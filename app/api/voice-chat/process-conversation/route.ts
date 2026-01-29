@@ -84,6 +84,29 @@ export async function POST(request: NextRequest) {
       const endDate = new Date(meetingDate);
       endDate.setMinutes(endDate.getMinutes() + 30); // 30 minutes duration
 
+      // Format datetime for Google Calendar (without timezone suffix)
+      const mexicoStartDateTime = meetingDate.toLocaleString('en-CA', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).replace(', ', 'T').replace(/\//g, '-');
+
+      const mexicoEndDateTime = endDate.toLocaleString('en-CA', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).replace(', ', 'T').replace(/\//g, '-');
+
       const calendarEvent = {
         summary: meetingTopic,
         description: `
@@ -101,11 +124,11 @@ Link de Zoom: ${zoomMeeting.join_url}
 Conversation ID: ${conversationId}
         `.trim(),
         start: {
-          dateTime: meetingDate.toISOString(),
+          dateTime: mexicoStartDateTime,
           timeZone: 'America/Mexico_City',
         },
         end: {
-          dateTime: endDate.toISOString(),
+          dateTime: mexicoEndDateTime,
           timeZone: 'America/Mexico_City',
         },
         attendees: extractedInfo.email ? [{ email: extractedInfo.email }] : [],
