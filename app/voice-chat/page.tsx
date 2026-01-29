@@ -41,14 +41,24 @@ export default function VoiceChatPage() {
       setIsCallStarted(false);
       saveConversationToStorage();
     },
-    onMessage: (message) => {
+    onMessage: (message: any) => {
       console.log('Message:', message);
 
-      // Add message to chat
-      if (message.type === 'user_transcript' && message.user_transcript) {
+      // Add message to chat based on message structure
+      // User transcript
+      if ('user_transcript' in message && message.user_transcript) {
         addMessage('user', message.user_transcript);
-      } else if (message.type === 'agent_response' && message.agent_response) {
+      }
+      // Agent response
+      else if ('agent_response' in message && message.agent_response) {
         addMessage('agent', message.agent_response);
+      }
+      // Alternative message structure
+      else if ('message' in message && message.source === 'ai') {
+        addMessage('agent', message.message);
+      }
+      else if ('message' in message && message.source === 'user') {
+        addMessage('user', message.message);
       }
     },
     onError: (error) => {
