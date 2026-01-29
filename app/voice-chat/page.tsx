@@ -78,8 +78,18 @@ export default function VoiceChatPage() {
   };
 
   const saveConversationToStorage = () => {
+    console.log('💾 Attempting to save conversation...', {
+      conversationId,
+      messagesLength: messages.length,
+      hasMessages: messages.length > 0,
+      hasConvId: !!conversationId,
+    });
+
     if (!conversationId || messages.length === 0) {
-      console.log('Cannot save: conversationId or messages missing', { conversationId, messagesLength: messages.length });
+      console.error('❌ Cannot save: conversationId or messages missing', {
+        conversationId,
+        messagesLength: messages.length,
+      });
       return;
     }
 
@@ -90,25 +100,40 @@ export default function VoiceChatPage() {
       endedAt: new Date(),
     };
 
-    // Get existing conversations
-    const existingConversations = localStorage.getItem('voiceChatHistory');
-    const conversations: ConversationHistory[] = existingConversations
-      ? JSON.parse(existingConversations)
-      : [];
+    try {
+      // Get existing conversations
+      const existingConversations = localStorage.getItem('voiceChatHistory');
+      const conversations: ConversationHistory[] = existingConversations
+        ? JSON.parse(existingConversations)
+        : [];
 
-    // Add new conversation
-    conversations.push(conversationHistory);
+      // Add new conversation
+      conversations.push(conversationHistory);
 
-    // Save to localStorage
-    localStorage.setItem('voiceChatHistory', JSON.stringify(conversations));
-    console.log('✅ Conversation saved to localStorage:', conversationHistory);
-    console.log('📦 Total conversations in storage:', conversations.length);
+      // Save to localStorage
+      localStorage.setItem('voiceChatHistory', JSON.stringify(conversations));
+      console.log('✅ Conversation saved to localStorage:', conversationHistory);
+      console.log('📦 Total conversations in storage:', conversations.length);
+      console.log('🔑 localStorage key "voiceChatHistory" created/updated');
 
-    // Show success message
-    alert(language === 'es'
-      ? `✅ Conversación guardada! (${messages.length} mensajes)`
-      : `✅ Conversation saved! (${messages.length} messages)`
-    );
+      // Verify it was saved
+      const verification = localStorage.getItem('voiceChatHistory');
+      console.log('✓ Verification - Data in localStorage:', verification ? 'Found' : 'NOT FOUND');
+
+      // Show success message
+      alert(
+        language === 'es'
+          ? `✅ Conversación guardada! (${messages.length} mensajes)\n\nRevisa: DevTools > Application > Local Storage`
+          : `✅ Conversation saved! (${messages.length} messages)\n\nCheck: DevTools > Application > Local Storage`
+      );
+    } catch (error) {
+      console.error('❌ Error saving to localStorage:', error);
+      alert(
+        language === 'es'
+          ? `❌ Error al guardar: ${error}`
+          : `❌ Error saving: ${error}`
+      );
+    }
   };
 
   const viewHistory = () => {
@@ -179,6 +204,16 @@ export default function VoiceChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Log conversation state changes
+  useEffect(() => {
+    console.log('📊 Conversation state:', {
+      isCallStarted,
+      conversationId,
+      messagesCount: messages.length,
+      status: conversation.status,
+    });
+  }, [isCallStarted, conversationId, messages.length, conversation.status]);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
@@ -338,6 +373,19 @@ export default function VoiceChatPage() {
                       </svg>
                       <span>{language === 'es' ? 'Finalizar Llamada' : 'End Call'}</span>
                     </button>
+
+                    {/* Manual Save Button */}
+                    {messages.length > 0 && (
+                      <button
+                        onClick={saveConversationToStorage}
+                        className="w-full mt-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        <span className="text-sm">{language === 'es' ? 'Guardar Ahora' : 'Save Now'}</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
