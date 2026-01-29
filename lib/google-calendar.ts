@@ -20,11 +20,11 @@ export interface CalendarEvent {
   description: string;
   start: {
     dateTime: string;
-    timeZone: string;
+    timeZone?: string;
   };
   end: {
     dateTime: string;
-    timeZone: string;
+    timeZone?: string;
   };
   attendees?: Array<{ email: string }>;
   conferenceData?: {

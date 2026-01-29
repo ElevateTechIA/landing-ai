@@ -81,36 +81,45 @@ export async function POST(request: NextRequest) {
     // 4. Create Google Calendar event
     let googleEventId;
     try {
-      // Format datetime for Google Calendar API
-      // Convert ISO datetime to local Mexico time format: YYYY-MM-DDTHH:mm:ss
-      // The meetingDate might already be a Date object from getNextAvailableSlot or from preferredDate
+      // Format datetime for Google Calendar API using RFC3339 format with timezone offset
       let mexicoStartDateTime: string;
+      let timezoneOffset: string;
 
       if (extractedInfo.preferredDate) {
         // If we have a preferred date with timezone (e.g., "2026-01-30T22:00:00-06:00")
-        // Strip the timezone offset
-        mexicoStartDateTime = extractedInfo.preferredDate.replace(/[-+]\d{2}:\d{2}$/, '').replace(/\.\d{3}Z$/, '');
+        // Keep the datetime WITH the timezone offset, remove milliseconds if present
+        mexicoStartDateTime = extractedInfo.preferredDate.replace(/\.\d{3}/, '');
+
+        // Extract timezone offset (e.g., "-06:00")
+        const offsetMatch = mexicoStartDateTime.match(/([-+]\d{2}:\d{2})$/);
+        timezoneOffset = offsetMatch ? offsetMatch[1] : '-06:00'; // Default to Mexico City offset
       } else {
-        // Format the date object as ISO string and convert to Mexico timezone format
-        mexicoStartDateTime = meetingDate.toLocaleString('en-CA', {
-          timeZone: 'America/Mexico_City',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        }).replace(', ', 'T').replace(/\//g, '-');
+        // Format the date object as ISO string and convert to Mexico timezone with offset
+        // Mexico City is UTC-6 in CST (most of the year) or UTC-5 in CDT
+        const mexicoDate = new Date(meetingDate.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+        const year = mexicoDate.getFullYear();
+        const month = String(mexicoDate.getMonth() + 1).padStart(2, '0');
+        const day = String(mexicoDate.getDate()).padStart(2, '0');
+        const hours = String(mexicoDate.getHours()).padStart(2, '0');
+        const minutes = String(mexicoDate.getMinutes()).padStart(2, '0');
+        const seconds = String(mexicoDate.getSeconds()).padStart(2, '0');
+
+        timezoneOffset = '-06:00'; // Mexico City standard offset
+        mexicoStartDateTime = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezoneOffset}`;
       }
 
       // Calculate end time (30 minutes later)
-      const [datePart, timePart] = mexicoStartDateTime.split('T');
+      // Parse the datetime without timezone offset
+      const [datePart, timePartWithOffset] = mexicoStartDateTime.split('T');
+      const timePart = timePartWithOffset.replace(/([-+]\d{2}:\d{2})$/, ''); // Remove offset for parsing
       const [hours, minutes, seconds] = timePart.split(':').map(Number);
+
       const totalMinutes = hours * 60 + minutes + 30;
       const endHours = Math.floor(totalMinutes / 60) % 24;
       const endMinutes = totalMinutes % 60;
-      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+      // Reconstruct end datetime WITH timezone offset
+      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${timezoneOffset}`;
 
       const calendarEvent = {
         summary: meetingTopic,
@@ -129,12 +138,10 @@ Link de Zoom: ${zoomMeeting.join_url}
 Conversation ID: ${conversationId}
         `.trim(),
         start: {
-          dateTime: mexicoStartDateTime,
-          timeZone: 'America/Mexico_City',
+          dateTime: mexicoStartDateTime, // RFC3339 with timezone offset
         },
         end: {
-          dateTime: mexicoEndDateTime,
-          timeZone: 'America/Mexico_City',
+          dateTime: mexicoEndDateTime, // RFC3339 with timezone offset
         },
         attendees: extractedInfo.email ? [{ email: extractedInfo.email }] : [],
       };

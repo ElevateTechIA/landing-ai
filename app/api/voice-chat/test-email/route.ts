@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
     // Input: 2026-01-30T22:00:00-06:00 means 10 PM Mexico time
     const meetingDate = new Date(meetingDateTime);
 
-    // For Google Calendar API: strip the timezone offset from the input string
-    // Google Calendar will interpret "2026-01-30T22:00:00" as 10 PM in the specified timeZone
-    const mexicoDateTime = meetingDateTime.replace(/[-+]\d{2}:\d{2}$/, ''); // Remove -06:00
+    // Use RFC3339 format WITH timezone offset for Google Calendar
+    // Ensure format is: YYYY-MM-DDTHH:mm:ss-06:00 (no milliseconds)
+    const mexicoDateTime = meetingDateTime.replace(/\.\d{3}/, ''); // Remove milliseconds if present
 
     console.log('[TEST_EMAIL] Parsed meeting date:', {
       input: meetingDateTime,
@@ -65,8 +65,13 @@ export async function POST(request: NextRequest) {
     let googleEventId;
     try {
       // Calculate end time by adding 30 minutes to the start time string
-      // Parse the mexicoDateTime to get hours and minutes
-      const [datePart, timePart] = mexicoDateTime.split('T');
+      // Extract timezone offset from mexicoDateTime (e.g., "-06:00")
+      const timezoneOffsetMatch = mexicoDateTime.match(/([-+]\d{2}:\d{2})$/);
+      const timezoneOffset = timezoneOffsetMatch ? timezoneOffsetMatch[1] : '';
+
+      // Parse the mexicoDateTime to get hours and minutes (without timezone)
+      const [datePart, timePartWithOffset] = mexicoDateTime.split('T');
+      const timePart = timePartWithOffset.replace(/([-+]\d{2}:\d{2})$/, ''); // Remove offset for parsing
       const [hours, minutes, seconds] = timePart.split(':').map(Number);
 
       // Add 30 minutes
@@ -74,7 +79,8 @@ export async function POST(request: NextRequest) {
       const endHours = Math.floor(totalMinutes / 60) % 24;
       const endMinutes = totalMinutes % 60;
 
-      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      // Reconstruct end datetime WITH timezone offset
+      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${timezoneOffset}`;
 
       const calendarEvent = {
         summary: meetingTopic,
@@ -93,12 +99,10 @@ Link de Zoom: ${zoomMeeting.join_url}
 TEST EMAIL
         `.trim(),
         start: {
-          dateTime: mexicoDateTime,
-          timeZone: 'America/Mexico_City',
+          dateTime: mexicoDateTime, // Has timezone offset, no need for timeZone parameter
         },
         end: {
-          dateTime: mexicoEndDateTime,
-          timeZone: 'America/Mexico_City',
+          dateTime: mexicoEndDateTime, // Has timezone offset, no need for timeZone parameter
         },
         attendees: [{ email: clientEmail }],
       };
