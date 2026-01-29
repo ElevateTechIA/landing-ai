@@ -25,6 +25,7 @@ export default function VoiceChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string>('');
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [textInput, setTextInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversation = useConversation({
@@ -143,6 +144,26 @@ export default function VoiceChatPage() {
 
   const endConversation = async () => {
     await conversation.endSession();
+  };
+
+  const sendTextMessage = () => {
+    if (!textInput.trim() || !isCallStarted) return;
+
+    // Send message to agent
+    conversation.sendUserMessage(textInput);
+
+    // Add to chat immediately
+    addMessage('user', textInput);
+
+    // Clear input
+    setTextInput('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendTextMessage();
+    }
   };
 
   const clearHistory = () => {
@@ -410,15 +431,49 @@ export default function VoiceChatPage() {
                 )}
               </div>
 
-              {/* Footer Info */}
-              <div className="bg-gray-100 px-6 py-3 rounded-b-2xl border-t border-gray-200">
-                <p className="text-xs text-gray-500 text-center">
-                  {language === 'es'
-                    ? '💾 Las conversaciones se guardan en tu navegador (localStorage)'
-                    : '💾 Conversations are saved in your browser (localStorage)'
-                  }
-                </p>
-              </div>
+              {/* Footer - Text Input or Info */}
+              {isCallStarted ? (
+                <div className="bg-white px-4 py-3 rounded-b-2xl border-t border-gray-200">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={language === 'es'
+                        ? 'Escribe un mensaje (email, nombre, etc.)...'
+                        : 'Type a message (email, name, etc.)...'
+                      }
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm"
+                    />
+                    <button
+                      onClick={sendTextMessage}
+                      disabled={!textInput.trim()}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      <span className="hidden sm:inline">{language === 'es' ? 'Enviar' : 'Send'}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    {language === 'es'
+                      ? '💡 Usa el teclado para información compleja (emails, nombres, direcciones)'
+                      : '💡 Use keyboard for complex info (emails, names, addresses)'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-100 px-6 py-3 rounded-b-2xl border-t border-gray-200">
+                  <p className="text-xs text-gray-500 text-center">
+                    {language === 'es'
+                      ? '💾 Las conversaciones se guardan en tu navegador (localStorage)'
+                      : '💾 Conversations are saved in your browser (localStorage)'
+                    }
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
