@@ -133,6 +133,12 @@ export async function checkAvailability(
   calendarId: string = 'primary'
 ): Promise<boolean> {
   try {
+    console.log('[checkAvailability] Querying calendar:', {
+      calendarId,
+      timeMin: startTime.toISOString(),
+      timeMax: endTime.toISOString(),
+    });
+
     const response = await calendar.freebusy.query({
       requestBody: {
         timeMin: startTime.toISOString(),
@@ -141,10 +147,29 @@ export async function checkAvailability(
       },
     });
 
+    console.log('[checkAvailability] Response:', {
+      calendarId,
+      calendars: Object.keys(response.data.calendars || {}),
+      hasCalendarData: !!response.data.calendars?.[calendarId],
+    });
+
     const busy = response.data.calendars?.[calendarId]?.busy || [];
-    return busy.length === 0; // true si está disponible
+    const isAvailable = busy.length === 0;
+
+    console.log('[checkAvailability] Result:', {
+      calendarId,
+      busySlots: busy.length,
+      isAvailable,
+      busyPeriods: busy.map(b => ({ start: b.start, end: b.end })),
+    });
+
+    return isAvailable;
   } catch (error) {
-    console.error('Error checking availability:', error);
+    console.error('[checkAvailability] Error:', {
+      calendarId,
+      error: error instanceof Error ? error.message : String(error),
+      errorDetails: error,
+    });
     throw error;
   }
 }

@@ -15,12 +15,14 @@ export async function GET(request: NextRequest) {
     const countParam = searchParams.get('count') || '5';
     const count = parseInt(countParam, 10);
 
-    const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+    const calendarId = (process.env.GOOGLE_CALENDAR_ID || 'primary').trim();
 
     console.log('[AVAILABLE_SLOTS_AGENT] Request received:', {
       desiredDate,
       count,
       calendarId: calendarId === 'primary' ? 'primary (default)' : calendarId,
+      calendarIdLength: calendarId.length,
+      calendarIdHex: Buffer.from(calendarId).toString('hex'),
       hasGoogleCreds: !!process.env.GOOGLE_CLIENT_ID,
     });
 
@@ -29,34 +31,51 @@ export async function GET(request: NextRequest) {
     const BUSINESS_END_HOUR = 18; // 6 PM
     const MEETING_DURATION_MINUTES = 30;
 
-    // Determine starting date in Eastern Time
+    // Get current time (UTC)
     const now = new Date();
 
-    // Get current time in Eastern Time
-    const nowInET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    // Get current date/time in Eastern Time using Intl
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const etParts = formatter.formatToParts(now);
+    const currentETYear = parseInt(etParts.find(p => p.type === 'year')!.value);
+    const currentETMonth = parseInt(etParts.find(p => p.type === 'month')!.value);
+    const currentETDay = parseInt(etParts.find(p => p.type === 'day')!.value);
+    const currentETHour = parseInt(etParts.find(p => p.type === 'hour')!.value);
+    const currentETMinute = parseInt(etParts.find(p => p.type === 'minute')!.value);
 
-    let startDate: Date;
+    // Determine starting date in ET
+    let startYear = currentETYear;
+    let startMonth = currentETMonth;
+    let startDay = currentETDay;
 
     if (desiredDate) {
-      // Parse the desired date
-      const parsed = new Date(desiredDate);
-      if (!isNaN(parsed.getTime())) {
-        startDate = parsed;
-      } else {
-        startDate = new Date(nowInET);
+      // Parse the desired date (YYYY-MM-DD format)
+      const match = desiredDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        startYear = parseInt(match[1]);
+        startMonth = parseInt(match[2]);
+        startDay = parseInt(match[3]);
       }
-    } else {
-      startDate = new Date(nowInET);
     }
 
-    // If the desired date is in the past, start from tomorrow
-    if (startDate < nowInET) {
-      startDate = new Date(nowInET);
-      startDate.setDate(startDate.getDate() + 1);
-    }
+    // Check if start date is before today (in ET)
+    const startDateForComparison = `${startYear}-${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+    const todayForComparison = `${currentETYear}-${String(currentETMonth).padStart(2, '0')}-${String(currentETDay).padStart(2, '0')}`;
 
-    // Set to business start hour (8 AM Eastern Time)
-    startDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
+    if (startDateForComparison < todayForComparison) {
+      // Start from today instead
+      startYear = currentETYear;
+      startMonth = currentETMonth;
+      startDay = currentETDay;
+    }
 
     const availableSlots: Array<{
       date: string;
@@ -67,29 +86,45 @@ export async function GET(request: NextRequest) {
 
     let daysChecked = 0;
     const maxDaysToCheck = 14; // Check up to 2 weeks ahead
-    let candidateDate = new Date(startDate);
+
+    // Use a Date object just for date math (adding days)
+    let candidateDate = new Date(`${startYear}-${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}T12:00:00-05:00`);
 
     // Find available slots
     while (availableSlots.length < count && daysChecked < maxDaysToCheck) {
       // Skip weekends
       const dayOfWeek = candidateDate.getDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) {
-        candidateDate.setDate(candidateDate.getDate() + 1);
-        candidateDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
+        candidateDate = new Date(candidateDate.getTime() + (24 * 60 * 60 * 1000));
         daysChecked++;
         continue;
       }
 
       // Check each 30-minute slot
+      // Extract date components in Eastern Time (not server timezone)
+      const etDateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const etDateParts = etDateFormatter.formatToParts(candidateDate);
+      const year = etDateParts.find(p => p.type === 'year')!.value;
+      const month = etDateParts.find(p => p.type === 'month')!.value;
+      const day = etDateParts.find(p => p.type === 'day')!.value;
+
       for (let hour = BUSINESS_START_HOUR; hour < BUSINESS_END_HOUR; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
           if (availableSlots.length >= count) break;
 
-          const slotStart = new Date(candidateDate);
-          slotStart.setHours(hour, minute, 0, 0);
+          const hourStr = String(hour).padStart(2, '0');
+          const minuteStr = String(minute).padStart(2, '0');
 
-          const slotEnd = new Date(slotStart);
-          slotEnd.setMinutes(slotEnd.getMinutes() + MEETING_DURATION_MINUTES);
+          // Create ISO string with ET offset: YYYY-MM-DDTHH:mm:ss-05:00
+          const slotStartISO = `${year}-${month}-${day}T${hourStr}:${minuteStr}:00-05:00`;
+          const slotStart = new Date(slotStartISO);
+
+          const slotEnd = new Date(slotStart.getTime() + (MEETING_DURATION_MINUTES * 60 * 1000));
 
           // Check if slot end is within business hours
           if (slotEnd.getHours() > BUSINESS_END_HOUR ||
@@ -97,8 +132,8 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          // Skip slots in the past (compare in Eastern Time)
-          if (slotStart < nowInET) {
+          // Skip slots in the past (compare UTC times directly)
+          if (slotStart <= now) {
             continue;
           }
 
@@ -108,7 +143,9 @@ export async function GET(request: NextRequest) {
 
             console.log('[AVAILABLE_SLOTS_AGENT] Slot check:', {
               slot: slotStart.toISOString(),
+              slotET: slotStart.toLocaleString('en-US', { timeZone: 'America/New_York' }),
               isAvailable,
+              calendarId,
             });
 
             if (isAvailable) {
@@ -134,7 +171,13 @@ export async function GET(request: NextRequest) {
               });
             }
           } catch (error) {
-            console.error('[AVAILABLE_SLOTS_AGENT] Error checking availability for slot:', slotStart.toISOString(), error);
+            console.error('[AVAILABLE_SLOTS_AGENT] Error checking availability for slot:', {
+              slot: slotStart.toISOString(),
+              slotET: slotStart.toLocaleString('en-US', { timeZone: 'America/New_York' }),
+              calendarId,
+              error: error instanceof Error ? error.message : String(error),
+              errorStack: error instanceof Error ? error.stack : undefined,
+            });
             // If there's an error checking calendar, assume slot is available
             // This prevents the entire system from failing if calendar API has issues
             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -161,9 +204,8 @@ export async function GET(request: NextRequest) {
         if (availableSlots.length >= count) break;
       }
 
-      // Move to next day
-      candidateDate.setDate(candidateDate.getDate() + 1);
-      candidateDate.setHours(BUSINESS_START_HOUR, 0, 0, 0);
+      // Move to next day (add 24 hours to handle month/year rollover automatically)
+      candidateDate = new Date(candidateDate.getTime() + (24 * 60 * 60 * 1000));
       daysChecked++;
     }
 
