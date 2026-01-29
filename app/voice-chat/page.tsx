@@ -26,6 +26,7 @@ export default function VoiceChatPage() {
   const [conversationId, setConversationId] = useState<string>('');
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [textInput, setTextInput] = useState('');
+  const [callDuration, setCallDuration] = useState(0); // Duration in seconds
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use refs to maintain latest values for saving
@@ -206,36 +207,9 @@ export default function VoiceChatPage() {
       // Verify it was saved
       const verification = localStorage.getItem('voiceChatHistory');
       console.log('✓ Verification - Data in localStorage:', verification ? 'Found' : 'NOT FOUND');
-
-      // Show success message
-      alert(
-        language === 'es'
-          ? `✅ Conversación guardada! (${currentMessages.length} mensajes)\n\nRevisa: DevTools > Application > Local Storage`
-          : `✅ Conversation saved! (${currentMessages.length} messages)\n\nCheck: DevTools > Application > Local Storage`
-      );
     } catch (error) {
       console.error('❌ Error saving to localStorage:', error);
-      alert(
-        language === 'es'
-          ? `❌ Error al guardar: ${error}`
-          : `❌ Error saving: ${error}`
-      );
     }
-  };
-
-  const viewHistory = () => {
-    const history = localStorage.getItem('voiceChatHistory');
-    if (!history) {
-      alert(language === 'es' ? 'No hay conversaciones guardadas' : 'No saved conversations');
-      return;
-    }
-
-    const conversations: ConversationHistory[] = JSON.parse(history);
-    console.log('📚 Conversation history:', conversations);
-    alert(language === 'es'
-      ? `Hay ${conversations.length} conversación(es) guardada(s). Revisa la consola para ver los detalles.`
-      : `There are ${conversations.length} saved conversation(s). Check the console for details.`
-    );
   };
 
   const startConversation = async () => {
@@ -278,19 +252,38 @@ export default function VoiceChatPage() {
     }
   };
 
-  const clearHistory = () => {
-    if (confirm(language === 'es'
-      ? '¿Estás seguro de que quieres borrar todo el historial?'
-      : 'Are you sure you want to clear all history?')) {
-      localStorage.removeItem('voiceChatHistory');
-      alert(language === 'es' ? 'Historial borrado' : 'History cleared');
-    }
-  };
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Call duration timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isCallStarted && startTime) {
+      // Update every second
+      interval = setInterval(() => {
+        const now = new Date();
+        const durationInSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+        setCallDuration(durationInSeconds);
+      }, 1000);
+    } else {
+      // Reset duration when call ends
+      setCallDuration(0);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isCallStarted, startTime]);
+
+  // Format duration as MM:SS
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   // Log conversation state changes
   useEffect(() => {
@@ -318,20 +311,6 @@ export default function VoiceChatPage() {
                   : 'Talk with the agent and see the conversation in real-time'
                 }
               </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={viewHistory}
-                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                {language === 'es' ? '📚 Ver Historial' : '📚 View History'}
-              </button>
-              <button
-                onClick={clearHistory}
-                className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                {language === 'es' ? '🗑️ Borrar Historial' : '🗑️ Clear History'}
-              </button>
             </div>
           </div>
         </div>
@@ -413,6 +392,15 @@ export default function VoiceChatPage() {
                           <div className="w-32 h-32 rounded-full border-4 border-green-300 animate-ping opacity-20" />
                         </div>
                       </div>
+
+                      {/* Call Duration */}
+                      <div className="mb-3 flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-2xl font-mono font-bold text-gray-900 tabular-nums">
+                          {formatDuration(callDuration)}
+                        </span>
+                      </div>
+
                       <p className="text-gray-600 text-sm">
                         {language === 'es'
                           ? '¡Estoy escuchando! Habla con normalidad'
