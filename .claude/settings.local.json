@@ -21,7 +21,8 @@
       "Bash(python3:*)",
       "Bash(pkill:*)",
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(jq:*)"
     ]
   }
 }

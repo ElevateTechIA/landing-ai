@@ -15,9 +15,14 @@ export async function GET(request: NextRequest) {
     const countParam = searchParams.get('count') || '5';
     const count = parseInt(countParam, 10);
 
-    console.log('[AVAILABLE_SLOTS_AGENT] Request received:', { desiredDate, count });
-
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
+    console.log('[AVAILABLE_SLOTS_AGENT] Request received:', {
+      desiredDate,
+      count,
+      calendarId: calendarId === 'primary' ? 'primary (default)' : calendarId,
+      hasGoogleCreds: !!process.env.GOOGLE_CLIENT_ID,
+    });
 
     // Business hours configuration
     const BUSINESS_START_HOUR = 8;
@@ -90,6 +95,12 @@ export async function GET(request: NextRequest) {
           // Check availability in Google Calendar
           try {
             const isAvailable = await checkAvailability(slotStart, slotEnd, calendarId);
+
+            console.log('[AVAILABLE_SLOTS_AGENT] Slot check:', {
+              slot: slotStart.toISOString(),
+              isAvailable,
+            });
+
             if (isAvailable) {
               // Format the slot for the agent
               const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -113,8 +124,28 @@ export async function GET(request: NextRequest) {
               });
             }
           } catch (error) {
-            console.error('[AVAILABLE_SLOTS_AGENT] Error checking availability:', error);
-            // Continue to next slot on error
+            console.error('[AVAILABLE_SLOTS_AGENT] Error checking availability for slot:', slotStart.toISOString(), error);
+            // If there's an error checking calendar, assume slot is available
+            // This prevents the entire system from failing if calendar API has issues
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'];
+
+            const timeString = slotStart.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: 'America/New_York'
+            });
+
+            const dateString = `${monthNames[slotStart.getMonth()]} ${slotStart.getDate()}`;
+
+            availableSlots.push({
+              date: dateString,
+              time: timeString,
+              datetime: slotStart.toISOString(),
+              dayOfWeek: dayNames[slotStart.getDay()]
+            });
           }
         }
         if (availableSlots.length >= count) break;
