@@ -26,27 +26,18 @@ export async function POST(request: NextRequest) {
       meetingDateTime,
     });
 
-    // Parse meeting date and format for Google Calendar
-    // Google Calendar expects datetime without timezone suffix when timeZone is specified
+    // Parse meeting date
     // Input: 2026-01-30T22:00:00-06:00 means 10 PM Mexico time
     const meetingDate = new Date(meetingDateTime);
 
-    // Format as local Mexico time (YYYY-MM-DDTHH:mm:ss) without Z or timezone offset
-    const mexicoDateTime = meetingDate.toLocaleString('en-CA', {
-      timeZone: 'America/Mexico_City',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    }).replace(', ', 'T').replace(/\//g, '-');
+    // For Google Calendar API: strip the timezone offset from the input string
+    // Google Calendar will interpret "2026-01-30T22:00:00" as 10 PM in the specified timeZone
+    const mexicoDateTime = meetingDateTime.replace(/[-+]\d{2}:\d{2}$/, ''); // Remove -06:00
 
     console.log('[TEST_EMAIL] Parsed meeting date:', {
       input: meetingDateTime,
-      parsedDate: meetingDate.toISOString(),
       mexicoDateTime,
+      parsedDate: meetingDate.toISOString(),
       displayTime: meetingDate.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
     });
 
@@ -73,20 +64,17 @@ export async function POST(request: NextRequest) {
     // Create Google Calendar event
     let googleEventId;
     try {
-      const endDate = new Date(meetingDate);
-      endDate.setMinutes(endDate.getMinutes() + 30); // 30 minutes duration
+      // Calculate end time by adding 30 minutes to the start time string
+      // Parse the mexicoDateTime to get hours and minutes
+      const [datePart, timePart] = mexicoDateTime.split('T');
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
 
-      // Format end time the same way
-      const mexicoEndDateTime = endDate.toLocaleString('en-CA', {
-        timeZone: 'America/Mexico_City',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).replace(', ', 'T').replace(/\//g, '-');
+      // Add 30 minutes
+      const totalMinutes = hours * 60 + minutes + 30;
+      const endHours = Math.floor(totalMinutes / 60) % 24;
+      const endMinutes = totalMinutes % 60;
+
+      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
       const calendarEvent = {
         summary: meetingTopic,

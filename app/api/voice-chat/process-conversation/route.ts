@@ -81,31 +81,36 @@ export async function POST(request: NextRequest) {
     // 4. Create Google Calendar event
     let googleEventId;
     try {
-      const endDate = new Date(meetingDate);
-      endDate.setMinutes(endDate.getMinutes() + 30); // 30 minutes duration
+      // Format datetime for Google Calendar API
+      // Convert ISO datetime to local Mexico time format: YYYY-MM-DDTHH:mm:ss
+      // The meetingDate might already be a Date object from getNextAvailableSlot or from preferredDate
+      let mexicoStartDateTime: string;
 
-      // Format datetime for Google Calendar (without timezone suffix)
-      const mexicoStartDateTime = meetingDate.toLocaleString('en-CA', {
-        timeZone: 'America/Mexico_City',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).replace(', ', 'T').replace(/\//g, '-');
+      if (extractedInfo.preferredDate) {
+        // If we have a preferred date with timezone (e.g., "2026-01-30T22:00:00-06:00")
+        // Strip the timezone offset
+        mexicoStartDateTime = extractedInfo.preferredDate.replace(/[-+]\d{2}:\d{2}$/, '').replace(/\.\d{3}Z$/, '');
+      } else {
+        // Format the date object as ISO string and convert to Mexico timezone format
+        mexicoStartDateTime = meetingDate.toLocaleString('en-CA', {
+          timeZone: 'America/Mexico_City',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).replace(', ', 'T').replace(/\//g, '-');
+      }
 
-      const mexicoEndDateTime = endDate.toLocaleString('en-CA', {
-        timeZone: 'America/Mexico_City',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).replace(', ', 'T').replace(/\//g, '-');
+      // Calculate end time (30 minutes later)
+      const [datePart, timePart] = mexicoStartDateTime.split('T');
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes + 30;
+      const endHours = Math.floor(totalMinutes / 60) % 24;
+      const endMinutes = totalMinutes % 60;
+      const mexicoEndDateTime = `${datePart}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
       const calendarEvent = {
         summary: meetingTopic,
