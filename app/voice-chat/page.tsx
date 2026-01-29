@@ -77,7 +77,10 @@ export default function VoiceChatPage() {
   };
 
   const saveConversationToStorage = () => {
-    if (!conversationId || messages.length === 0) return;
+    if (!conversationId || messages.length === 0) {
+      console.log('Cannot save: conversationId or messages missing', { conversationId, messagesLength: messages.length });
+      return;
+    }
 
     const conversationHistory: ConversationHistory = {
       conversationId,
@@ -97,7 +100,29 @@ export default function VoiceChatPage() {
 
     // Save to localStorage
     localStorage.setItem('voiceChatHistory', JSON.stringify(conversations));
-    console.log('Conversation saved to localStorage:', conversationHistory);
+    console.log('✅ Conversation saved to localStorage:', conversationHistory);
+    console.log('📦 Total conversations in storage:', conversations.length);
+
+    // Show success message
+    alert(language === 'es'
+      ? `✅ Conversación guardada! (${messages.length} mensajes)`
+      : `✅ Conversation saved! (${messages.length} messages)`
+    );
+  };
+
+  const viewHistory = () => {
+    const history = localStorage.getItem('voiceChatHistory');
+    if (!history) {
+      alert(language === 'es' ? 'No hay conversaciones guardadas' : 'No saved conversations');
+      return;
+    }
+
+    const conversations: ConversationHistory[] = JSON.parse(history);
+    console.log('📚 Conversation history:', conversations);
+    alert(language === 'es'
+      ? `Hay ${conversations.length} conversación(es) guardada(s). Revisa la consola para ver los detalles.`
+      : `There are ${conversations.length} saved conversation(s). Check the console for details.`
+    );
   };
 
   const startConversation = async () => {
@@ -151,12 +176,20 @@ export default function VoiceChatPage() {
                 }
               </p>
             </div>
-            <button
-              onClick={clearHistory}
-              className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              {language === 'es' ? '🗑️ Borrar Historial' : '🗑️ Clear History'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={viewHistory}
+                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                {language === 'es' ? '📚 Ver Historial' : '📚 View History'}
+              </button>
+              <button
+                onClick={clearHistory}
+                className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                {language === 'es' ? '🗑️ Borrar Historial' : '🗑️ Clear History'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
