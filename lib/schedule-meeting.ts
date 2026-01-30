@@ -152,7 +152,7 @@ export async function scheduleMeeting(params: ScheduleMeetingParams): Promise<Sc
         `Consulta: ${params.name} - ${params.company}`,
         meetingDate.toISOString(),
         30,
-        params.timezone || 'America/Mexico_City'
+        params.timezone || 'America/New_York'
       );
       console.log('[SCHEDULE_MEETING] Zoom meeting created:', zoomMeeting.id);
     } catch (error) {
@@ -183,11 +183,11 @@ export async function scheduleMeeting(params: ScheduleMeetingParams): Promise<Sc
         `,
         start: {
           dateTime: meetingDate.toISOString(),
-          timeZone: params.timezone || 'America/Mexico_City'
+          timeZone: params.timezone || 'America/New_York'
         },
         end: {
           dateTime: meetingEndDate.toISOString(),
-          timeZone: params.timezone || 'America/Mexico_City'
+          timeZone: params.timezone || 'America/New_York'
         },
         attendees: [
           { email: params.email }

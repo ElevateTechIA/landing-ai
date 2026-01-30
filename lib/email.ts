@@ -15,13 +15,24 @@ function formatDateTime(dateTimeStr: string, language: 'en' | 'es'): string {
     const date = new Date(dateTimeStr);
     const langLocale = language === 'en' ? 'en-US' : 'es-MX';
 
-    const dayOfWeek = date.toLocaleDateString(langLocale, { weekday: 'long' });
-    const month = date.toLocaleDateString(langLocale, { month: 'long' });
-    const day = date.getDate();
+    // Always use Eastern Time for consistency
+    const dayOfWeek = date.toLocaleDateString(langLocale, {
+      weekday: 'long',
+      timeZone: 'America/New_York'
+    });
+    const month = date.toLocaleDateString(langLocale, {
+      month: 'long',
+      timeZone: 'America/New_York'
+    });
+    const day = date.toLocaleDateString(langLocale, {
+      day: 'numeric',
+      timeZone: 'America/New_York'
+    });
     const time = date.toLocaleTimeString(langLocale, {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: 'America/New_York'
     });
 
     if (language === 'es') {
