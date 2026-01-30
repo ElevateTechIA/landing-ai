@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkAvailability } from '@/lib/google-calendar';
 import { getAvailableSlots } from '@/lib/available-slots';
+import { scheduleMeeting } from '@/lib/schedule-meeting';
 import axios from 'axios';
 
 interface Message {
@@ -574,10 +575,6 @@ async function scheduleMeetingAction(
       return { success: false };
     }
 
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
-
     const scheduleData = {
       name: currentData.name || '',
       email: currentData.email || '',
@@ -590,26 +587,18 @@ async function scheduleMeetingAction(
       timeline: '',
       selectedSlot: typeof slot === 'string' ? slot : slot.datetime, // Extract datetime if slot is an object
       timezone: 'America/New_York',
-      language,
+      language: language as 'en' | 'es',
       messages: messages // Pass conversation transcript
     };
 
-    const response = await fetch(
-      `${baseUrl}/api/calendar/schedule`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scheduleData)
-      }
-    );
-
-    const data = await response.json();
-    console.log('[CHAT_SCHEDULER] Schedule response:', data);
+    // Call the shared scheduling function directly (no HTTP request)
+    const result = await scheduleMeeting(scheduleData);
+    console.log('[CHAT_SCHEDULER] Schedule result:', result);
 
     return {
-      success: data.success || false,
-      zoomLink: data.zoomLink || '',
-      meetingId: data.meetingId || ''
+      success: result.success || false,
+      zoomLink: result.zoomLink || '',
+      meetingId: result.meetingId || ''
     };
   } catch (error) {
     console.error('[CHAT_SCHEDULER] Error scheduling meeting:', error);
