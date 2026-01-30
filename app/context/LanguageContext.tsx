@@ -92,6 +92,8 @@ const translations = {
       description: 'Never lose a lead again. Let our AI chatbot or voice agent schedule meetings for you 24/7 while you focus on growing your business. We build intelligent software solutions that automate your operations, reduce costs, and scale with your business.',
       cta: 'Let\'s Talk About Your Project',
       ctaSecondary: 'See How It Works',
+      virtualAssistant: 'Hi I\'m your virtual assistant',
+      virtualAssistantCta: 'schedule a meeting with me today',
     },
     howItWorksOriginal: {
       title: 'How We Work',
@@ -309,6 +311,8 @@ const translations = {
       description: 'Nunca pierdas un lead de nuevo. Deja que nuestro chatbot IA o agente de voz agende reuniones por ti 24/7 mientras te enfocas en hacer crecer tu negocio. Construimos soluciones inteligentes que automatizan tus operaciones, reducen costos y escalan con tu negocio.',
       cta: 'Hablemos de Tu Proyecto',
       ctaSecondary: 'Ver Cómo Funciona',
+      virtualAssistant: 'Hola, soy tu asistente virtual',
+      virtualAssistantCta: 'agenda una reunión conmigo hoy',
     },
     howItWorksOriginal: {
       title: 'Cómo Trabajamos',

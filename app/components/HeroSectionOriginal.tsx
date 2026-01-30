@@ -52,42 +52,12 @@ export default function HeroSectionOriginal() {
             priority
           />
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 sm:p-8">
-            <p className="text-white text-xl sm:text-2xl lg:text-3xl font-semibold">Cesar Oswaldo Vega</p>
-            <p className="text-white/90 text-base sm:text-lg">CEO</p>
+            <p className="text-white text-xl sm:text-2xl lg:text-3xl font-semibold">{t('heroOriginal.virtualAssistant')}</p>
+            <p className="text-white/90 text-base sm:text-lg">{t('heroOriginal.virtualAssistantCta')}</p>
           </div>
         </div>
         </div>
         </div>
-
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-16 lg:mt-20 max-w-6xl mx-auto">
-          <div className="bg-gray-50 rounded-xl p-6 sm:p-8 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-2 text-base sm:text-lg">{t('hero.smartFast')}</h3>
-            <p className="text-sm sm:text-base text-gray-600">{t('hero.smartFastDesc')}</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-6 sm:p-8 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-2 text-base sm:text-lg">{t('hero.secure')}</h3>
-            <p className="text-sm sm:text-base text-gray-600">{t('hero.secureDesc')}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Navigation Hint */}
-      <div className="mt-16 lg:mt-20 text-center">
-        <p className="text-sm sm:text-base text-gray-400 mb-3">{t('hero.scroll')}</p>
-        <svg className="w-6 h-6 sm:w-7 sm:h-7 mx-auto text-gray-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
       </div>
     </section>
   );

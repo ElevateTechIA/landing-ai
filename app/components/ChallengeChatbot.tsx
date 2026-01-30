@@ -348,7 +348,7 @@ export default function ChallengeChatbot() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-[600px] bg-gray-50">
       {/* Chat container */}
       <div className="flex flex-col w-full max-w-2xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
         {/* Messages area */}

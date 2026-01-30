@@ -50,38 +50,16 @@ export default function Navbar() {
             onClick={() => scrollToSection('hero')}
             className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity"
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl sm:text-2xl font-bold">E</span>
-            </div>
-            <span className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">{t('nav.logo')}</span>
+            <img
+              src="/images/logo_elevated.png"
+              alt="Elevate AI Logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10"
+            />
+            <span className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">ELEVATE AI</span>
           </button>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4 lg:gap-6">
-            <button
-              onClick={() => scrollToSection('hero')}
-              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-sm lg:text-base"
-            >
-              Inicio
-            </button>
-            <Link
-              href="/agent-services"
-              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-sm lg:text-base"
-            >
-              Agente AI
-            </Link>
-            <Link
-              href="/voice-chat"
-              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-sm lg:text-base"
-            >
-              Voice Chat
-            </Link>
-            <button
-              onClick={() => scrollToSection('contact-form')}
-              className="bg-blue-600 text-white px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-blue-700 transition-all hover:shadow-lg font-medium text-sm lg:text-base"
-            >
-              Contacto
-            </button>
             <LanguageSwitcher />
           </div>
 
