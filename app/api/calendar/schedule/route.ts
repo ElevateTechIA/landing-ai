@@ -209,7 +209,8 @@ export async function POST(request: NextRequest) {
       timeline: data.timeline,
       scheduledTime: data.selectedSlot,
       zoomLink: zoomMeeting.join_url,
-      language: data.language || 'es'
+      language: data.language || 'es',
+      messages: data.messages || []
     });
 
     return NextResponse.json({

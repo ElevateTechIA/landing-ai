@@ -804,6 +804,7 @@ interface SendHostNotificationParams {
   scheduledTime: string;
   zoomLink: string;
   language?: 'en' | 'es';
+  messages?: ChatMessage[];
 }
 
 export async function sendHostNotification(params: SendHostNotificationParams) {
@@ -818,13 +819,60 @@ export async function sendHostNotification(params: SendHostNotificationParams) {
     timeline,
     scheduledTime,
     zoomLink,
-    language = 'es'
+    language = 'es',
+    messages = []
   } = params;
 
   const t = EMAIL_TRANSLATIONS.hostNotification[language];
+  const formattedDateTime = formatDateTime(scheduledTime, language);
 
   try {
     const subject = t.subject(name, company);
+
+    // Generate chat transcript HTML if messages exist
+    const langLocale = language === 'en' ? 'en-US' : 'es-MX';
+    const chatTranscriptHTML = messages.length > 0
+      ? messages
+          .map(msg => {
+            const time = new Date(msg.timestamp).toLocaleTimeString(langLocale, {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            if (msg.role === 'user') {
+              return `
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                  <tr>
+                    <td align="right">
+                      <div style="display: inline-block; max-width: 70%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; border-radius: 18px 18px 4px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: left;">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; text-align: right;">
+                          <strong>${language === 'es' ? 'Cliente' : 'Client'}</strong> • ${time}
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.4;">${msg.content}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              `;
+            } else {
+              return `
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                  <tr>
+                    <td align="left">
+                      <div style="display: inline-block; max-width: 70%; background: white; border: 1px solid #e5e7eb; color: #1f2937; padding: 12px 16px; border-radius: 18px 18px 18px 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
+                          <strong>Elevate AI</strong> • ${time}
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.4;">${msg.content}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              `;
+            }
+          })
+          .join('')
+      : '';
     const html = `
         <!DOCTYPE html>
         <html>
@@ -841,10 +889,10 @@ export async function sendHostNotification(params: SendHostNotificationParams) {
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
             <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
               <h2 style="color: #059669; margin-top: 0; font-size: 20px;">${t.meetingDetails}</h2>
-              <p style="margin: 10px 0;"><strong>${t.dateTime}</strong> ${scheduledTime}</p>
+              <p style="margin: 10px 0; font-size: 16px;"><strong>${formattedDateTime}</strong></p>
               <p style="margin: 10px 0;">
                 <strong>${t.zoomLink}</strong><br>
-                <a href="${zoomLink}" style="color: #2563eb; text-decoration: none;">${zoomLink}</a>
+                <a href="${zoomLink}" style="color: #2563eb; text-decoration: none; word-break: break-all;">${zoomLink}</a>
               </p>
             </div>
 
@@ -899,6 +947,21 @@ export async function sendHostNotification(params: SendHostNotificationParams) {
                 </div>
               </div>
             </div>
+
+            ${messages.length > 0 ? `
+            <!-- Conversation Transcript -->
+            <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #0891b2; margin-top: 0; font-size: 20px;">💬 ${language === 'es' ? 'Transcripción de la Conversación' : 'Conversation Transcript'}</h2>
+
+              <div style="background: #f9fafb; border-radius: 12px; padding: 20px; max-height: 500px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
+                ${chatTranscriptHTML}
+              </div>
+
+              <p style="margin: 15px 0 0 0; color: #6b7280; font-size: 12px; text-align: center;">
+                ${messages.length} ${language === 'es' ? 'mensajes' : 'messages'}
+              </p>
+            </div>
+            ` : ''}
 
             <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
               <p style="color: #9ca3af; font-size: 12px; margin: 0;">
