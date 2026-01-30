@@ -174,7 +174,7 @@ export default function TestEmailPage() {
               <h3 className={`text-lg font-semibold mb-3 ${result.success ? 'text-green-900' : 'text-red-900'}`}>
                 {result.success ? '✅ Éxito' : '❌ Error'}
               </h3>
-              <pre className="text-sm overflow-auto bg-white p-4 rounded border">
+              <pre className="text-sm overflow-auto bg-white text-gray-900 p-4 rounded border border-gray-200">
                 {JSON.stringify(result, null, 2)}
               </pre>
 
