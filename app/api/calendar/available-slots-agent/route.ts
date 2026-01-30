@@ -279,15 +279,22 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('[AVAILABLE_SLOTS_AGENT] Error:', error);
+
+    // Check if it's a credentials error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isCredentialsError = errorMessage.includes('Missing required Google Calendar environment variables');
+
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to fetch available slots',
-        details: error instanceof Error ? error.message : String(error),
+        error: isCredentialsError
+          ? 'Google Calendar integration not configured'
+          : 'Failed to fetch available slots',
+        details: errorMessage,
         slots: [],
         count: 0
       },
-      { status: 500 }
+      { status: isCredentialsError ? 503 : 500 }
     );
   }
 }

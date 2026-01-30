@@ -1,19 +1,57 @@
 import { google } from 'googleapis';
 
-// Inicializar OAuth2 client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
+// Function to check if required environment variables are set
+function checkGoogleCredentials() {
+  const requiredVars = {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
+  };
 
-// Set refresh token
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-});
+  const missing = Object.entries(requiredVars)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
 
-// Inicializar Google Calendar API
-const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required Google Calendar environment variables: ${missing.join(', ')}. ` +
+      `Please configure these in your production environment.`
+    );
+  }
+
+  return requiredVars;
+}
+
+// Lazy initialization - only create client when actually needed
+let oauth2Client: any = null;
+let calendar: any = null;
+
+function getGoogleCalendar() {
+  if (!calendar) {
+    // Check credentials first
+    const creds = checkGoogleCredentials();
+
+    // Initialize OAuth2 client
+    oauth2Client = new google.auth.OAuth2(
+      creds.GOOGLE_CLIENT_ID,
+      creds.GOOGLE_CLIENT_SECRET,
+      creds.GOOGLE_REDIRECT_URI
+    );
+
+    // Set refresh token
+    oauth2Client.setCredentials({
+      refresh_token: creds.GOOGLE_REFRESH_TOKEN,
+    });
+
+    // Initialize Google Calendar API
+    calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+    console.log('[GOOGLE_CALENDAR] Successfully initialized with credentials');
+  }
+
+  return calendar;
+}
 
 export interface CalendarEvent {
   summary: string;
@@ -46,7 +84,8 @@ export async function getCalendarEvents(
   calendarId: string = 'primary'
 ) {
   try {
-    const response = await calendar.events.list({
+    const cal = getGoogleCalendar();
+    const response = await cal.events.list({
       calendarId,
       timeMin: timeMin.toISOString(),
       timeMax: timeMax.toISOString(),
@@ -69,7 +108,8 @@ export async function createCalendarEvent(
   calendarId: string = 'primary'
 ) {
   try {
-    const response = await calendar.events.insert({
+    const cal = getGoogleCalendar();
+    const response = await cal.events.insert({
       calendarId,
       conferenceDataVersion: 1,
       requestBody: event,
@@ -91,7 +131,8 @@ export async function updateCalendarEvent(
   calendarId: string = 'primary'
 ) {
   try {
-    const response = await calendar.events.patch({
+    const cal = getGoogleCalendar();
+    const response = await cal.events.patch({
       calendarId,
       eventId,
       requestBody: event,
@@ -112,7 +153,8 @@ export async function deleteCalendarEvent(
   calendarId: string = 'primary'
 ) {
   try {
-    await calendar.events.delete({
+    const cal = getGoogleCalendar();
+    await cal.events.delete({
       calendarId,
       eventId,
     });
@@ -139,7 +181,8 @@ export async function checkAvailability(
       timeMax: endTime.toISOString(),
     });
 
-    const response = await calendar.freebusy.query({
+    const cal = getGoogleCalendar();
+    const response = await cal.freebusy.query({
       requestBody: {
         timeMin: startTime.toISOString(),
         timeMax: endTime.toISOString(),

@@ -112,15 +112,69 @@ export async function POST(request: NextRequest) {
     // If action is show_available_slots and no payload provided, fetch slots automatically
     if (analysis.action === 'show_available_slots' && (!finalPayload || !finalPayload.slots)) {
       console.log('[CHAT_SCHEDULER] Fetching available slots automatically...');
-      const slotsResult = await getAvailableSlotsAction(language);
-      finalPayload = { ...finalPayload, ...slotsResult };
+      try {
+        const slotsResult = await getAvailableSlotsAction(language);
+        finalPayload = { ...finalPayload, ...slotsResult };
+
+        // If no slots returned, inform user
+        if (!slotsResult.slots || slotsResult.slots.length === 0) {
+          console.warn('[CHAT_SCHEDULER] No slots available');
+          return NextResponse.json({
+            success: true,
+            response: language === 'es'
+              ? 'Lo siento, no hay horarios disponibles en este momento. Por favor intenta más tarde o contáctanos directamente.'
+              : 'Sorry, no time slots are available at this time. Please try again later or contact us directly.',
+            action: 'error',
+            extractedData: analysis.extractedData,
+            actionPayload: {}
+          });
+        }
+      } catch (error) {
+        console.error('[CHAT_SCHEDULER] Failed to fetch available slots:', error);
+        return NextResponse.json({
+          success: true,
+          response: language === 'es'
+            ? 'Disculpa, hubo un problema al obtener los horarios disponibles. Por favor intenta de nuevo en unos momentos.'
+            : 'Sorry, there was a problem getting available times. Please try again in a few moments.',
+          action: 'error',
+          extractedData: analysis.extractedData,
+          actionPayload: {}
+        });
+      }
     }
 
     // If action is show_specific_date_slots and no slots provided, fetch them
     if (analysis.action === 'show_specific_date_slots' && (!finalPayload || !finalPayload.slots)) {
       console.log('[CHAT_SCHEDULER] Fetching specific date slots automatically...');
-      const slotsResult = await getSpecificDateSlotsAction(finalPayload, language);
-      finalPayload = { ...finalPayload, ...slotsResult };
+      try {
+        const slotsResult = await getSpecificDateSlotsAction(finalPayload, language);
+        finalPayload = { ...finalPayload, ...slotsResult };
+
+        // If no slots returned, inform user
+        if (!slotsResult.slots || slotsResult.slots.length === 0) {
+          console.warn('[CHAT_SCHEDULER] No slots available for specific date');
+          return NextResponse.json({
+            success: true,
+            response: language === 'es'
+              ? 'Lo siento, no hay horarios disponibles para esa fecha. ¿Te gustaría ver otros horarios disponibles?'
+              : 'Sorry, no time slots are available for that date. Would you like to see other available times?',
+            action: 'collect_info',
+            extractedData: analysis.extractedData,
+            actionPayload: {}
+          });
+        }
+      } catch (error) {
+        console.error('[CHAT_SCHEDULER] Failed to fetch specific date slots:', error);
+        return NextResponse.json({
+          success: true,
+          response: language === 'es'
+            ? 'Disculpa, hubo un problema al obtener los horarios para esa fecha. Por favor intenta con otra fecha.'
+            : 'Sorry, there was a problem getting times for that date. Please try another date.',
+          action: 'collect_info',
+          extractedData: analysis.extractedData,
+          actionPayload: {}
+        });
+      }
     }
 
     const actionResult = await handleAction(
@@ -400,10 +454,26 @@ async function getAvailableSlotsAction(language: string): Promise<Record<string,
       ? `https://${process.env.VERCEL_URL}`
       : 'http://localhost:3000';
 
-    const response = await fetch(
-      `${baseUrl}/api/calendar/available-slots-agent?language=${language}&count=5`,
-      { method: 'GET' }
-    );
+    const url = `${baseUrl}/api/calendar/available-slots-agent?language=${language}&count=5`;
+    console.log('[CHAT_SCHEDULER] Fetching slots from:', url);
+
+    const response = await fetch(url, { method: 'GET' });
+
+    console.log('[CHAT_SCHEDULER] Slots response status:', response.status);
+    console.log('[CHAT_SCHEDULER] Slots response headers:', response.headers.get('content-type'));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[CHAT_SCHEDULER] Error response:', errorText.substring(0, 500));
+      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('[CHAT_SCHEDULER] Non-JSON response:', text.substring(0, 500));
+      throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 200)}`);
+    }
 
     const data = await response.json();
     console.log('[CHAT_SCHEDULER] Available slots response:', data);
@@ -442,10 +512,25 @@ async function getSpecificDateSlotsAction(
       query += `&timeRange=${timeRange}`;
     }
 
-    const response = await fetch(
-      `${baseUrl}${query}`,
-      { method: 'GET' }
-    );
+    const url = `${baseUrl}${query}`;
+    console.log('[CHAT_SCHEDULER] Fetching specific date slots from:', url);
+
+    const response = await fetch(url, { method: 'GET' });
+
+    console.log('[CHAT_SCHEDULER] Specific slots response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[CHAT_SCHEDULER] Error response:', errorText.substring(0, 500));
+      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('[CHAT_SCHEDULER] Non-JSON response:', text.substring(0, 500));
+      throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 200)}`);
+    }
 
     const data = await response.json();
     console.log('[CHAT_SCHEDULER] Specific date slots response:', data);
