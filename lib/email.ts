@@ -213,7 +213,7 @@ const EMAIL_TRANSLATIONS = {
       email: 'Email:',
       phone: 'Phone:',
       company: 'Company:',
-      projectDetails: '📋 Project Details',
+      consultationSummary: '📋 Consultation Summary',
       challenge: 'Challenge / Project:',
       objectives: 'Objectives:',
       budget: '💰 Budget',
@@ -232,7 +232,7 @@ const EMAIL_TRANSLATIONS = {
       email: 'Email:',
       phone: 'Teléfono:',
       company: 'Empresa:',
-      projectDetails: '📋 Detalles del Proyecto',
+      consultationSummary: '📋 Resumen de tu Consulta',
       challenge: 'Desafío / Proyecto:',
       objectives: 'Objetivos:',
       budget: '💰 Presupuesto',
@@ -935,28 +935,36 @@ export async function sendHostNotification(params: SendHostNotificationParams) {
             </div>
 
             <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #7c3aed; margin-top: 0; font-size: 20px;">${t.projectDetails}</h2>
+              <h2 style="color: #059669; margin-top: 0; font-size: 20px;">${t.consultationSummary}</h2>
 
               <div style="margin: 15px 0; padding: 15px; background: #f3f4f6; border-radius: 8px;">
                 <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 14px; font-weight: 600;">${t.challenge}</p>
                 <p style="margin: 0;">${challenge}</p>
               </div>
 
+              ${objectives ? `
               <div style="margin: 15px 0; padding: 15px; background: #f3f4f6; border-radius: 8px;">
                 <p style="margin: 0 0 5px 0; color: #6b7280; font-size: 14px; font-weight: 600;">${t.objectives}</p>
                 <p style="margin: 0;">${objectives}</p>
               </div>
+              ` : ''}
 
+              ${budget || timeline ? `
               <div style="display: flex; gap: 15px; margin-top: 15px;">
+                ${budget ? `
                 <div style="flex: 1; padding: 15px; background: #ecfdf5; border-radius: 8px; text-align: center;">
                   <p style="margin: 0 0 5px 0; color: #059669; font-size: 12px; font-weight: 600;">${t.budget}</p>
                   <p style="margin: 0; font-weight: 600; color: #047857;">${budget}</p>
                 </div>
+                ` : ''}
+                ${timeline ? `
                 <div style="flex: 1; padding: 15px; background: #eff6ff; border-radius: 8px; text-align: center;">
                   <p style="margin: 0 0 5px 0; color: #2563eb; font-size: 12px; font-weight: 600;">${t.timeline}</p>
                   <p style="margin: 0; font-weight: 600; color: #1d4ed8;">${timeline}</p>
                 </div>
+                ` : ''}
               </div>
+              ` : ''}
             </div>
 
             ${messages.length > 0 ? `
