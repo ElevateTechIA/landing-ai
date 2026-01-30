@@ -27,7 +27,11 @@
       "Bash(/tmp/test_chat.sh:*)",
       "Bash(npm run dev:*)",
       "Bash(/tmp/test_fixes.sh)",
-      "Bash(for SMBs and startups\" to \"Tailored solutions for your business\"\n\nNow the hero section shows only the main title and description without\nthe subtitle.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(for SMBs and startups\" to \"Tailored solutions for your business\"\n\nNow the hero section shows only the main title and description without\nthe subtitle.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(Let our AI chatbot or voice agent schedule meetings for you 24/7 while)",
+      "Bash(you focus on growing your business.\"\n- app/context/LanguageContext.tsx \\(ES\\): Added \"Nunca pierdas un lead de)",
+      "Bash(nuevo. Deja que nuestro chatbot IA o agente de voz agende reuniones por)",
+      "Bash(ti 24/7 mientras te enfocas en hacer crecer tu negocio.\"\n\nNow the hero section better communicates the core value proposition of\nautomated lead capture and meeting scheduling.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

@@ -89,7 +89,7 @@ const translations = {
     },
     heroOriginal: {
       title: 'Custom Software That Drives Real Business Growth Using AI',
-      description: 'Stop wasting time on manual processes. We build intelligent software solutions that automate your operations, reduce costs, and scale with your business.',
+      description: 'Never lose a lead again. Let our AI chatbot or voice agent schedule meetings for you 24/7 while you focus on growing your business. We build intelligent software solutions that automate your operations, reduce costs, and scale with your business.',
       cta: 'Let\'s Talk About Your Project',
       ctaSecondary: 'See How It Works',
     },
@@ -306,7 +306,7 @@ const translations = {
     },
     heroOriginal: {
       title: 'Software a Medida Que Impulsa el Crecimiento Real de Tu Negocio Usando IA',
-      description: 'Deja de perder tiempo en procesos manuales. Construimos soluciones inteligentes que automatizan tus operaciones, reducen costos y escalan con tu negocio.',
+      description: 'Nunca pierdas un lead de nuevo. Deja que nuestro chatbot IA o agente de voz agende reuniones por ti 24/7 mientras te enfocas en hacer crecer tu negocio. Construimos soluciones inteligentes que automatizan tus operaciones, reducen costos y escalan con tu negocio.',
       cta: 'Hablemos de Tu Proyecto',
       ctaSecondary: 'Ver Cómo Funciona',
     },
