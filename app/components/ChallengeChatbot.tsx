@@ -260,26 +260,44 @@ export default function ChallengeChatbot() {
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+            <div key={idx}>
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  msg.role === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-none'
-                    : 'bg-gray-100 text-gray-900 rounded-bl-none shadow'
-                }`}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    msg.role === 'user'
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-none shadow'
                   }`}
                 >
-                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p
+                    className={`text-xs mt-1 ${
+                      msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                    }`}
+                  >
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
               </div>
+              {/* Show alternatives right after assistant message */}
+              {msg.role === 'assistant' && idx === messages.length - 1 && alternatives.length > 0 && (
+                <div className="flex justify-start mt-3 ml-0">
+                  <div className="space-y-2 w-full">
+                    {alternatives.map((slot, slotIdx) => (
+                      <button
+                        key={slotIdx}
+                        onClick={() => handleSelectSlot(slot)}
+                        disabled={isLoading || isScheduling}
+                        className="w-full text-left px-4 py-2 bg-green-50 border border-green-300 rounded-lg hover:bg-green-100 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-green-900 font-medium"
+                      >
+                        📅 {slot.displayText}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {isLoading && (
@@ -304,27 +322,6 @@ export default function ChallengeChatbot() {
           )}
           <div ref={messagesEndRef} />
         </div>
-
-        {/* Alternatives/Slots section */}
-        {alternatives.length > 0 && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-            <p className="text-sm text-gray-600 mb-3 font-medium">
-              {language === 'es' ? 'Selecciona un horario:' : 'Select a time:'}
-            </p>
-            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-              {alternatives.map((slot, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSelectSlot(slot)}
-                  disabled={isLoading || isScheduling}
-                  className="text-left px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                >
-                  📅 {slot.displayText}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Input area */}
         <div className="border-t border-gray-200 bg-white p-4">
