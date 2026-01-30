@@ -22,7 +22,8 @@
       "Bash(pkill:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(bash:*)"
     ]
   }
 }

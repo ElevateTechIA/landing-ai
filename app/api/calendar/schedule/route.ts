@@ -17,6 +17,7 @@ interface ScheduleRequest {
   timeline: string;
   selectedSlot: string;
   timezone: string;
+  language?: 'en' | 'es';
 }
 
 // Guardar reunión en Firebase
@@ -182,7 +183,8 @@ export async function POST(request: NextRequest) {
     // 4. Enviar email de confirmación al cliente
     await sendConfirmationEmail({
       ...data,
-      zoomLink: zoomMeeting.join_url
+      zoomLink: zoomMeeting.join_url,
+      language: data.language || 'es'
     });
 
     // 5. Enviar notificación al anfitrión con todos los detalles del prospecto
@@ -196,7 +198,8 @@ export async function POST(request: NextRequest) {
       budget: data.budget,
       timeline: data.timeline,
       scheduledTime: data.selectedSlot,
-      zoomLink: zoomMeeting.join_url
+      zoomLink: zoomMeeting.join_url,
+      language: data.language || 'es'
     });
 
     return NextResponse.json({

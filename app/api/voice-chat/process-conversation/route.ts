@@ -226,8 +226,12 @@ Conversation ID: ${conversationId}
       clientEmail: false,
     };
 
+    // Determine language (default to Spanish)
+    const emailLanguage = 'es';
+    const langLocale = 'es-US';
+
     // Format meeting time for display
-    const formattedTime = meetingDate.toLocaleString('es-US', {
+    const formattedTime = meetingDate.toLocaleString(langLocale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -251,6 +255,7 @@ Conversation ID: ${conversationId}
         zoomLink: zoomMeeting.join_url,
         messages,
         conversationId,
+        language: emailLanguage,
       });
       emailResults.hostEmail = true;
       console.log('[VOICE_CHAT_PROCESS] Host email sent');
@@ -274,6 +279,7 @@ Conversation ID: ${conversationId}
           zoomLink: zoomMeeting.join_url,
           messages,
           conversationId,
+          language: emailLanguage,
         });
         emailResults.clientEmail = true;
         console.log('[VOICE_CHAT_PROCESS] Client email sent successfully');

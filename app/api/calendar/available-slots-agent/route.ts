@@ -14,12 +14,16 @@ export async function GET(request: NextRequest) {
     const desiredDate = searchParams.get('date'); // Optional: YYYY-MM-DD format
     const countParam = searchParams.get('count') || '5';
     const count = parseInt(countParam, 10);
+    const language = (searchParams.get('language') || 'en') as 'en' | 'es';
+    const timeRange = (searchParams.get('timeRange') as 'morning' | 'afternoon' | 'evening' | undefined) || undefined;
 
     const calendarId = (process.env.GOOGLE_CALENDAR_ID || 'primary').trim();
 
     console.log('[AVAILABLE_SLOTS_AGENT] Request received:', {
       desiredDate,
       count,
+      language,
+      timeRange,
       calendarId: calendarId === 'primary' ? 'primary (default)' : calendarId,
       calendarIdLength: calendarId.length,
       calendarIdHex: Buffer.from(calendarId).toString('hex'),
@@ -30,6 +34,22 @@ export async function GET(request: NextRequest) {
     const BUSINESS_START_HOUR = 8;
     const BUSINESS_END_HOUR = 18; // 6 PM
     const MEETING_DURATION_MINUTES = 30;
+
+    // Helper function to get time range based on timeRange parameter
+    const getTimeRangeHours = (range?: string): { startHour: number; endHour: number } => {
+      switch (range) {
+        case 'morning':
+          return { startHour: 8, endHour: 12 };
+        case 'afternoon':
+          return { startHour: 12, endHour: 18 };
+        case 'evening':
+          return { startHour: 16, endHour: 18 };
+        default:
+          return { startHour: BUSINESS_START_HOUR, endHour: BUSINESS_END_HOUR };
+      }
+    };
+
+    const { startHour, endHour } = getTimeRangeHours(timeRange);
 
     // Get current time (UTC)
     const now = new Date();
@@ -113,7 +133,7 @@ export async function GET(request: NextRequest) {
       const month = etDateParts.find(p => p.type === 'month')!.value;
       const day = etDateParts.find(p => p.type === 'day')!.value;
 
-      for (let hour = BUSINESS_START_HOUR; hour < BUSINESS_END_HOUR; hour++) {
+      for (let hour = startHour; hour < endHour; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
           if (availableSlots.length >= count) break;
 
@@ -160,11 +180,14 @@ export async function GET(request: NextRequest) {
 
             if (isAvailable) {
               // Format the slot for the agent
-              const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
+              const dayNames = language === 'es'
+                ? ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+                : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+              const monthNames = language === 'es'
+                ? ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+                : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-              const timeString = slotStart.toLocaleTimeString('en-US', {
+              const timeString = slotStart.toLocaleTimeString(language === 'es' ? 'es-ES' : 'en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true,
@@ -190,11 +213,14 @@ export async function GET(request: NextRequest) {
             });
             // If there's an error checking calendar, assume slot is available
             // This prevents the entire system from failing if calendar API has issues
-            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayNames = language === 'es'
+              ? ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+              : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const monthNames = language === 'es'
+              ? ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+              : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-            const timeString = slotStart.toLocaleTimeString('en-US', {
+            const timeString = slotStart.toLocaleTimeString(language === 'es' ? 'es-ES' : 'en-US', {
               hour: 'numeric',
               minute: '2-digit',
               hour12: true,

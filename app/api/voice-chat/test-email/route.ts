@@ -207,8 +207,12 @@ TEST EMAIL
       console.error('[TEST_EMAIL] Full calendar error:', JSON.stringify(error, null, 2));
     }
 
+    // Determine email language (default to Spanish)
+    const emailLanguage = 'es';
+    const langLocale = 'es-US';
+
     // Format meeting time for display
-    const formattedTime = meetingDate.toLocaleString('es-US', {
+    const formattedTime = meetingDate.toLocaleString(langLocale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -278,6 +282,7 @@ TEST EMAIL
         zoomLink: zoomMeeting.join_url,
         messages: testMessages,
         conversationId: `test_${Date.now()}`,
+        language: emailLanguage,
       });
       emailResults.hostEmail = true;
       console.log('[TEST_EMAIL] Host email sent');
@@ -299,6 +304,7 @@ TEST EMAIL
         zoomLink: zoomMeeting.join_url,
         messages: testMessages,
         conversationId: `test_${Date.now()}`,
+        language: emailLanguage,
       });
       emailResults.clientEmail = true;
       console.log('[TEST_EMAIL] Client email sent');
