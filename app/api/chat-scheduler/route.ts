@@ -78,9 +78,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Execute the determined action
+    let finalPayload = analysis.actionPayload || {};
+
+    // If action is show_available_slots and no payload provided, fetch slots automatically
+    if (analysis.action === 'show_available_slots' && (!finalPayload || !finalPayload.slots)) {
+      console.log('[CHAT_SCHEDULER] Fetching available slots automatically...');
+      const slotsResult = await getAvailableSlotsAction(language);
+      finalPayload = { ...finalPayload, ...slotsResult };
+    }
+
     const actionResult = await handleAction(
       analysis.action,
-      analysis.actionPayload || {},
+      finalPayload,
       language,
       currentData || {}
     );
@@ -90,7 +99,7 @@ export async function POST(request: NextRequest) {
       response: analysis.response,
       action: analysis.action,
       extractedData: analysis.extractedData,
-      actionPayload: actionResult
+      actionPayload: finalPayload
     });
 
   } catch (error) {

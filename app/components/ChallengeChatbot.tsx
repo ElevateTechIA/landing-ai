@@ -124,10 +124,8 @@ export default function ChallengeChatbot() {
         // Add AI response
         addMessage('assistant', data.response);
 
-        // Execute action
-        if (data.actionPayload) {
-          await executeAction(data.action, data.actionPayload);
-        }
+        // Execute action (always execute, even if payload is empty)
+        await executeAction(data.action, data.actionPayload || {});
       } catch (error) {
         console.error('[CHATBOT] Error:', error);
         addMessage('assistant', lang === 'en'
@@ -178,10 +176,8 @@ export default function ChallengeChatbot() {
       // Add AI response
       addMessage('assistant', data.response);
 
-      // Execute action
-      if (data.actionPayload) {
-        await executeAction(data.action, data.actionPayload);
-      }
+      // Execute action (always execute, even if payload is empty)
+      await executeAction(data.action, data.actionPayload || {});
 
     } catch (error) {
       console.error('[CHATBOT] Error:', error);
