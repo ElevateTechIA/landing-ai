@@ -19,6 +19,112 @@ interface ConversationHistory {
   endedAt?: Date;
 }
 
+/**
+ * Formats transcript text to convert spoken numbers and dates to readable format
+ * Examples:
+ * - "three zero five, three two two, zero zero seven zero" → "305-322-0070"
+ * - "January thirtieth" → "January 30th"
+ * - "twelve zero zero PM" → "12:00 PM"
+ */
+function formatTranscriptText(text: string): string {
+  // Map of spoken numbers to digits
+  const numberWords: { [key: string]: string } = {
+    zero: '0',
+    one: '1',
+    two: '2',
+    three: '3',
+    four: '4',
+    five: '5',
+    six: '6',
+    seven: '7',
+    eight: '8',
+    nine: '9',
+  };
+
+  // Map of ordinal words to numbers with suffix
+  const ordinalWords: { [key: string]: string } = {
+    first: '1st',
+    second: '2nd',
+    third: '3rd',
+    fourth: '4th',
+    fifth: '5th',
+    sixth: '6th',
+    seventh: '7th',
+    eighth: '8th',
+    ninth: '9th',
+    tenth: '10th',
+    eleventh: '11th',
+    twelfth: '12th',
+    thirteenth: '13th',
+    fourteenth: '14th',
+    fifteenth: '15th',
+    sixteenth: '16th',
+    seventeenth: '17th',
+    eighteenth: '18th',
+    nineteenth: '19th',
+    twentieth: '20th',
+    'twenty-first': '21st',
+    'twenty-second': '22nd',
+    'twenty-third': '23rd',
+    'twenty-fourth': '24th',
+    'twenty-fifth': '25th',
+    'twenty-sixth': '26th',
+    'twenty-seventh': '27th',
+    'twenty-eighth': '28th',
+    'twenty-ninth': '29th',
+    thirtieth: '30th',
+    'thirty-first': '31st',
+  };
+
+  let formatted = text;
+
+  // Replace ordinal dates (e.g., "January thirtieth" → "January 30th")
+  Object.entries(ordinalWords).forEach(([word, number]) => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    formatted = formatted.replace(regex, number);
+  });
+
+  // Format phone numbers: "three zero five, three two two, zero zero seven zero"
+  // Pattern: looks for sequences of number words separated by spaces/commas
+  const phonePattern = /\b(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]*(,\s*)?(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]*(,\s*)?(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s,]+(zero|one|two|three|four|five|six|seven|eight|nine)\b/gi;
+
+  formatted = formatted.replace(phonePattern, (match) => {
+    // Extract all number words
+    const words = match.toLowerCase().match(/zero|one|two|three|four|five|six|seven|eight|nine/g);
+    if (!words || words.length !== 10) return match;
+
+    // Convert to digits
+    const digits = words.map((word) => numberWords[word]).join('');
+    // Format as phone number: 305-322-0070
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  });
+
+  // Format times: "twelve zero zero PM" → "12:00 PM"
+  // Also handles "at twelve zero zero PM Eastern Time"
+  const timePattern = /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)[\s]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s]+(AM|PM|am|pm)\b/gi;
+
+  const timeWords: { [key: string]: string } = {
+    ...numberWords,
+    ten: '10',
+    eleven: '11',
+    twelve: '12',
+  };
+
+  formatted = formatted.replace(timePattern, (match) => {
+    const parts = match.toLowerCase().match(/zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|am|pm/g);
+    if (!parts || parts.length !== 4) return match;
+
+    const hour = timeWords[parts[0]] || parts[0];
+    const minute1 = timeWords[parts[1]] || parts[1];
+    const minute2 = timeWords[parts[2]] || parts[2];
+    const period = parts[3].toUpperCase();
+
+    return `${hour}:${minute1}${minute2} ${period}`;
+  });
+
+  return formatted;
+}
+
 export default function VoiceChatPage() {
   const { language } = useLanguage();
   const [isCallStarted, setIsCallStarted] = useState(false);
@@ -571,7 +677,7 @@ export default function VoiceChatPage() {
                               {new Date(msg.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
-                          <p className="text-sm leading-relaxed">{msg.message}</p>
+                          <p className="text-sm leading-relaxed">{formatTranscriptText(msg.message)}</p>
                         </div>
                       </div>
                     ))}
