@@ -49,7 +49,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       value = value?.[k];
     }
 
-    return value || key;
+    return value ?? key;
   };
 
   return (
