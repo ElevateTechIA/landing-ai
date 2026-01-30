@@ -26,7 +26,8 @@
       "Bash(bash:*)",
       "Bash(/tmp/test_chat.sh:*)",
       "Bash(npm run dev:*)",
-      "Bash(/tmp/test_fixes.sh)"
+      "Bash(/tmp/test_fixes.sh)",
+      "Bash(for SMBs and startups\" to \"Tailored solutions for your business\"\n\nNow the hero section shows only the main title and description without\nthe subtitle.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Customer Service AI v.0.0.2",
-  description: "Building the Future of Your Business with Custom AI & Software. Tailored solutions for SMBs and startups.",
+  description: "Building the Future of Your Business with Custom AI & Software. Tailored solutions for your business.",
 };
 
 export default function RootLayout({

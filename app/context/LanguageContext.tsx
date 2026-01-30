@@ -74,7 +74,7 @@ const translations = {
     },
     hero: {
       title: 'AI Agent That Talks to Your Leads and Books Zoom Meetings for You',
-      subtitle: 'For SMBs and Startups',
+      subtitle: '',
       description: 'Capture, qualify and schedule calls with one 24/7 AI agent that replaces contact forms and back-and-forth emails.',
       cta: 'Start AI Intake (2 minutes)',
       ctaSecondary: 'Try the agent now',
@@ -291,7 +291,7 @@ const translations = {
     },
     hero: {
       title: 'Agente IA Que Habla con Tus Leads y Agenda Reuniones de Zoom por Ti',
-      subtitle: 'Para PYMEs y Startups',
+      subtitle: '',
       description: 'Captura, califica y agenda llamadas con un agente IA 24/7 que reemplaza formularios de contacto y emails de ida y vuelta.',
       cta: 'Iniciar Intake IA (2 minutos)',
       ctaSecondary: 'Probar el agente ahora',
