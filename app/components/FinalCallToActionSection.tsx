@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import ChallengeChatbot from './ChallengeChatbot';
+import Image from 'next/image';
 
 export default function FinalCallToActionSection() {
   const { t } = useLanguage();
@@ -54,10 +55,14 @@ export default function FinalCallToActionSection() {
         {/* Call to Action Card */}
         {!showChatbot ? (
           <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 sm:p-12 text-center">
-            <div className="w-24 h-24 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full overflow-hidden flex items-center justify-center">
+              <Image
+                src="/images/cesarvega.png"
+                alt="Cesar Vega"
+                width={96}
+                height={96}
+                className="object-cover w-full h-full"
+              />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">
               {t('language') === 'es' ? 'Asistente de Contacto' : 'Contact Assistant'}
@@ -74,12 +79,6 @@ export default function FinalCallToActionSection() {
             >
               {t('language') === 'es' ? 'Iniciar Conversación' : 'Start Conversation'}
             </button>
-            <p className="text-gray-500 text-sm mt-4">
-              {t('language') === 'es'
-                ? 'O usa el asistente de voz con el botón verde en la esquina inferior derecha'
-                : 'Or use the voice assistant with the green button in the bottom right corner'
-              }
-            </p>
             <div className="flex items-center justify-center gap-2 text-gray-400 text-xs mt-4">
               <span>Powered by AI</span>
             </div>

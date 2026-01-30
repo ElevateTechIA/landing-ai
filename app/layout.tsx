@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "./context/LanguageContext";
 import Navbar from "./components/Navbar";
-import ChatModeToggle from "./components/ChatModeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +36,6 @@ export default function RootLayout({
         <LanguageProvider>
           <Navbar />
           {children}
-          <ChatModeToggle />
         </LanguageProvider>
       </body>
     </html>
