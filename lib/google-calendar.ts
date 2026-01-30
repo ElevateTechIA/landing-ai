@@ -203,7 +203,7 @@ export async function checkAvailability(
       calendarId,
       busySlots: busy.length,
       isAvailable,
-      busyPeriods: busy.map(b => ({ start: b.start, end: b.end })),
+      busyPeriods: busy.map((b: { start?: string; end?: string }) => ({ start: b.start, end: b.end })),
     });
 
     return isAvailable;
