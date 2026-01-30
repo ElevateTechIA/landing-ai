@@ -14,9 +14,11 @@ export default function HeroSectionOriginal() {
         <div className="lg:grid lg:grid-cols-2 lg:gap-16 xl:gap-20 lg:items-center">
         <div className="mb-12 lg:mb-0">
         <div>
-          <p className="text-blue-600 text-sm sm:text-base font-semibold mb-3 uppercase tracking-wide">
-            {t('hero.subtitle')}
-          </p>
+          {t('hero.subtitle') && (
+            <p className="text-blue-600 text-sm sm:text-base font-semibold mb-3 uppercase tracking-wide">
+              {t('hero.subtitle')}
+            </p>
+          )}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-4 lg:mb-6 leading-tight">
             {t('heroOriginal.title')}
           </h1>
