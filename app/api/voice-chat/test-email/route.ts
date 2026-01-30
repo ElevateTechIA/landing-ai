@@ -41,6 +41,67 @@ export async function POST(request: NextRequest) {
       displayTime: meetingDate.toLocaleString('en-US', { timeZone: 'America/New_York' }),
     });
 
+    // Validate business hours (8 AM - 6 PM Eastern Time)
+    const BUSINESS_START_HOUR = 8;
+    const BUSINESS_END_HOUR = 18; // 6 PM
+    const MEETING_DURATION_MINUTES = 30;
+
+    // Get the hour in Eastern Time
+    const etFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const etParts = etFormatter.formatToParts(meetingDate);
+    const etHour = parseInt(etParts.find(p => p.type === 'hour')!.value);
+    const etMinute = parseInt(etParts.find(p => p.type === 'minute')!.value);
+
+    // Check if start time is within business hours
+    if (etHour < BUSINESS_START_HOUR || etHour >= BUSINESS_END_HOUR) {
+      console.error('[TEST_EMAIL] Meeting time outside business hours:', {
+        etHour,
+        etMinute,
+        businessHours: `${BUSINESS_START_HOUR}:00 - ${BUSINESS_END_HOUR}:00`
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: `El horario debe estar entre ${BUSINESS_START_HOUR}:00 AM y ${BUSINESS_END_HOUR === 18 ? '6:00 PM' : BUSINESS_END_HOUR + ':00'} Eastern Time`,
+          message: `Selected time ${etHour}:${String(etMinute).padStart(2, '0')} is outside business hours`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check if meeting end time would be within business hours
+    const meetingEndDate = new Date(meetingDate.getTime() + (MEETING_DURATION_MINUTES * 60 * 1000));
+    const endEtParts = etFormatter.formatToParts(meetingEndDate);
+    const endEtHour = parseInt(endEtParts.find(p => p.type === 'hour')!.value);
+    const endEtMinute = parseInt(endEtParts.find(p => p.type === 'minute')!.value);
+
+    if (endEtHour > BUSINESS_END_HOUR || (endEtHour === BUSINESS_END_HOUR && endEtMinute > 0)) {
+      console.error('[TEST_EMAIL] Meeting would end outside business hours:', {
+        endEtHour,
+        endEtMinute,
+        businessEndHour: BUSINESS_END_HOUR
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: `La reunión terminaría después de las ${BUSINESS_END_HOUR === 18 ? '6:00 PM' : BUSINESS_END_HOUR + ':00'}. Por favor selecciona un horario más temprano.`,
+          message: `Meeting would end at ${endEtHour}:${String(endEtMinute).padStart(2, '0')}, which is outside business hours`,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log('[TEST_EMAIL] Time validation passed:', {
+      startTime: `${etHour}:${String(etMinute).padStart(2, '0')} ET`,
+      endTime: `${endEtHour}:${String(endEtMinute).padStart(2, '0')} ET`,
+      businessHours: `${BUSINESS_START_HOUR}:00 - ${BUSINESS_END_HOUR}:00 ET`
+    });
+
     // Create Zoom meeting
     const meetingTopic = `Consulta de Voz - ${clientName}`;
     let zoomMeeting;
