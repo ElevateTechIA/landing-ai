@@ -67,7 +67,7 @@ async function generateAvailableSlots(timezone: string): Promise<AvailableSlot[]
           // Verificar si el slot ya está ocupado en Firebase
           if (!bookedTimes.has(slotIso)) {
             // Verificar disponibilidad en Google Calendar
-            const endTime = new Date(slotDate.getTime() + 60 * 60 * 1000); // +1 hora
+            const endTime = new Date(slotDate.getTime() + 30 * 60 * 1000); // +30 minutos
             
             try {
               const isAvailable = await checkAvailability(slotDate, endTime, calendarId);

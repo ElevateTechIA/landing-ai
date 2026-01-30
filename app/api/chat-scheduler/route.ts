@@ -37,7 +37,7 @@ interface ChatResponse {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, language, currentData } = body;
+    const { messages, language, currentData, selectedSlot } = body;
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
@@ -56,8 +56,37 @@ export async function POST(request: NextRequest) {
     console.log('[CHAT_SCHEDULER] Processing conversation:', {
       messageCount: messages.length,
       language,
-      hasCurrentData: !!currentData
+      hasCurrentData: !!currentData,
+      hasSelectedSlot: !!selectedSlot
     });
+
+    // If user selected a slot directly, skip AI and schedule immediately
+    if (selectedSlot && selectedSlot.datetime) {
+      console.log('[CHAT_SCHEDULER] Direct slot selection detected, scheduling meeting...');
+
+      const scheduleResult = await scheduleMeetingAction(
+        { slot: selectedSlot },
+        currentData || {},
+        language,
+        messages
+      );
+
+      const successMessage = language === 'es'
+        ? `✅ ¡Excelente! Tu reunión ha sido agendada exitosamente.\n\n📅 ${selectedSlot.displayText}\n\n${scheduleResult.zoomLink ? `🔗 Link de Zoom: ${scheduleResult.zoomLink}\n\n` : ''}Te enviaremos un email de confirmación a ${currentData.email}.`
+        : `✅ Great! Your meeting has been successfully scheduled.\n\n📅 ${selectedSlot.displayText}\n\n${scheduleResult.zoomLink ? `🔗 Zoom Link: ${scheduleResult.zoomLink}\n\n` : ''}We'll send you a confirmation email at ${currentData.email}.`;
+
+      return NextResponse.json({
+        success: true,
+        response: successMessage,
+        action: 'schedule_meeting',
+        extractedData: {},
+        actionPayload: {
+          success: scheduleResult.success,
+          zoomLink: scheduleResult.zoomLink,
+          meetingId: scheduleResult.meetingId
+        }
+      });
+    }
 
     // 1. Analyze conversation with AI
     const analysis = await analyzeConversation(messages, language, currentData || {});
@@ -87,11 +116,19 @@ export async function POST(request: NextRequest) {
       finalPayload = { ...finalPayload, ...slotsResult };
     }
 
+    // If action is show_specific_date_slots and no slots provided, fetch them
+    if (analysis.action === 'show_specific_date_slots' && (!finalPayload || !finalPayload.slots)) {
+      console.log('[CHAT_SCHEDULER] Fetching specific date slots automatically...');
+      const slotsResult = await getSpecificDateSlotsAction(finalPayload, language);
+      finalPayload = { ...finalPayload, ...slotsResult };
+    }
+
     const actionResult = await handleAction(
       analysis.action,
       finalPayload,
       language,
-      currentData || {}
+      currentData || {},
+      messages
     );
 
     return NextResponse.json({
@@ -186,23 +223,82 @@ REQUIRED DATA (if not already collected):
 4. company (company name, can be "Independent" or "Self-employed")
 5. purpose (reason for consultation)
 
+CONVERSATION FLOW:
+Step 1: If any data is missing → use "collect_info" (ask naturally for missing fields one by one)
+Step 2: Once all data is collected → use "confirm_data" (show collected info, ask for confirmation like "Is this correct?")
+Step 3: User confirms (says "yes/ok/looks good/correct/true") → use "show_available_slots" (display available times)
+Step 4: User selects a specific slot from the list → use "schedule_meeting" (create the meeting)
+IMPORTANT: Do NOT jump from confirm_data directly to schedule_meeting. Always show available slots first.
+
 TASK:
 1. Extract ANY new information mentioned: name, email, phone, company, purpose
 2. Understand user's intent about scheduling
-3. Determine the NEXT ACTION:
-   - "collect_info": Still missing required data (ask for missing fields naturally)
-   - "show_available_slots": User wants to see available times (no specific date mentioned)
-   - "show_specific_date_slots": User mentioned a specific date or time range (morning/afternoon/evening)
-   - "check_specific_time": User mentioned a specific date AND time
-   - "confirm_data": All required data collected, need confirmation before scheduling
-   - "schedule_meeting": User confirmed, ready to book
+3. Determine the NEXT ACTION based on EXACT conditions:
+   - "collect_info": ONLY if any of these are missing/null: name, email, phone, company, purpose (ask for missing fields naturally)
+   - "confirm_data": ONLY if all data is collected AND user hasn't confirmed yet (ask user to confirm collected data before showing slots)
+   - "show_available_slots": When user just said "yes/ok/confirmed/true" to confirm_data action, or user explicitly wants to see times but hasn't specified a date
+   - "show_specific_date_slots": User mentioned a specific date/time that needs validation OR requested time outside business hours (before 8am, after 6pm, or weekend)
+   - "schedule_meeting": ONLY when user mentions a specific time that is WITHIN business hours (8am-6pm Mon-Fri). Examples:
+     * Slot format: "Thursday, February 5 at 11:30 AM", "Monday, February 2 at 9:00 AM"
+     * Natural format: "Friday at 5:30pm", "tomorrow at 3pm", "next monday at 10am"
+     * CRITICAL: VALIDATE the time first - if outside 8am-6pm or on weekend, use show_specific_date_slots instead
+   - "check_specific_time": NEVER USE THIS ACTION - it causes the conversation to get stuck
    - "completed": Meeting successfully scheduled
+
+CRITICAL RULES:
+1. ALWAYS validate requested times against business hours (8am-6pm ET, Mon-Fri)
+2. If time is outside business hours:
+   - Use "show_specific_date_slots" to show available times on that date
+   - Explain why in your response: "Sorry, our hours are 8am-6pm. Here are available times:"
+3. If time is within business hours and data is confirmed:
+   - Use "schedule_meeting" to book immediately
+4. Examples:
+   - "Friday at 7pm" → show_specific_date_slots (7pm is after 6pm cutoff)
+   - "Friday at 5:30pm" → schedule_meeting (within 8am-6pm)
+   - "Saturday at 10am" → show_available_slots (weekends not available)
+
+CRITICAL BUSINESS HOURS VALIDATION:
+Business hours are 8:00 AM - 6:00 PM Eastern Time, Monday-Friday ONLY.
+BEFORE scheduling, you MUST validate the requested time:
+- If time is BEFORE 8:00 AM → Use "show_specific_date_slots" for that date (morning slots)
+- If time is AFTER 6:00 PM → Use "show_specific_date_slots" for that date (afternoon/evening slots until 6pm)
+- If day is Saturday/Sunday → Use "show_specific_date_slots" for next Monday
+- If time is WITHIN 8am-6pm on a weekday → Use "schedule_meeting"
+
+IMPORTANT FOR schedule_meeting ACTION:
+ONLY use this action if the requested time is within business hours (8am-6pm ET, Mon-Fri).
+When scheduling, you MUST:
+1. Parse the date and time from their message (use current date ${currentDateInfo} as reference)
+2. VALIDATE: Is it 8am-6pm ET on a weekday? If NO, use show_specific_date_slots instead
+3. Convert to ISO datetime format (YYYY-MM-DDTHH:MM:SS.000Z) in Eastern Time (UTC-5)
+4. Include in actionPayload as: { slot: { datetime: "ISO string", displayText: "formatted for display" } }
+
+Examples:
+- User says "Friday at 7pm" (AFTER 6pm)
+  → INVALID time (after 6pm)
+  → Action: "show_specific_date_slots" with date for that Friday
+  → Response: "${language === 'es' ? 'Lo siento, nuestro horario es hasta las 6:00 PM. Aquí están los horarios disponibles para el viernes:' : 'Sorry, our hours end at 6:00 PM. Here are the available times for Friday:'}"
+
+- User says "Friday at 5:30 PM" (within 8am-6pm)
+  → VALID time
+  → Action: "schedule_meeting"
+  → { slot: { datetime: "2026-01-31T22:30:00.000Z", displayText: "Friday, January 31 at 5:30 PM" } }
+
+- User says "Saturday at 10am" (weekend)
+  → INVALID day (weekend)
+  → Action: "show_available_slots"
+  → Response: "${language === 'es' ? 'Lo siento, solo agendamos reuniones de lunes a viernes. Aquí están nuestros próximos horarios disponibles:' : 'Sorry, we only schedule meetings Monday-Friday. Here are our next available times:'}"
 
 4. Generate a natural, conversational response in the user's language (${language === 'es' ? 'Spanish' : 'English'})
    - If collecting info: ask for missing fields naturally (don't ask for all at once)
-   - If showing slots: explain what slots you're showing
-   - If confirming: list the collected information and ask for confirmation
-   - If scheduling: confirm the meeting is booked
+   - If confirming data: list the collected information and ask "Is this correct?" or "Does this look good?"
+   - If showing slots because of out-of-hours request: EXPLAIN why their time isn't available
+     * Spanish: "Lo siento, nuestro horario de atención es de 8:00 AM a 6:00 PM, de lunes a viernes. Aquí están los horarios disponibles más cercanos:"
+     * English: "Sorry, our business hours are 8:00 AM to 6:00 PM, Monday through Friday. Here are the closest available times:"
+   - If showing slots (normal): Say something like "Here are the available times" but DO NOT list the actual slots - they will be shown as buttons
+   - If scheduling: confirm the meeting is being scheduled with the specific time they requested
+
+CRITICAL: When action is "show_available_slots" or "show_specific_date_slots", your response should NOT include the actual slot times/dates. Just say you're showing them. The slots will appear as clickable buttons below your message.
 
 RESPONSE FORMAT (valid JSON only, no markdown):
 {
@@ -217,8 +313,11 @@ RESPONSE FORMAT (valid JSON only, no markdown):
   },
   "actionPayload": {
     // For show_available_slots: { count: 5, language: "${language}" }
-    // For show_specific_date_slots: { date: "YYYY-MM-DD", timeRange: "morning|afternoon|evening|null", language: "${language}" }
-    // For check_specific_time: { userInput: "user's date/time request", language: "${language}" }
+    // For show_specific_date_slots: { date: "YYYY-MM-DD" (the date user requested), timeRange: "morning|afternoon|evening|null", language: "${language}" }
+    //   - Use this when user requests time outside business hours to show available slots on that date
+    //   - Example: User says "Friday at 7pm" → { date: "2026-01-31", timeRange: "afternoon", language: "es" }
+    // For schedule_meeting: { slot: { datetime: "ISO datetime string in UTC", displayText: "formatted display like 'Thursday, February 5 at 11:30 AM'" } }
+    //   - ONLY use if time is within 8am-6pm ET, Monday-Friday
     // For other actions: {}
   },
   "response": "Natural language response to user in ${language === 'es' ? 'Spanish' : 'English'}"
@@ -253,7 +352,8 @@ async function handleAction(
   action: string,
   payload: Record<string, any>,
   language: string,
-  currentData: ExtractedData
+  currentData: ExtractedData,
+  messages: Message[]
 ): Promise<Record<string, any> | null> {
   try {
     switch (action) {
@@ -273,12 +373,14 @@ async function handleAction(
         return await getSpecificDateSlotsAction(payload, language);
 
       case 'check_specific_time':
-        // Validate specific date/time
-        return await checkSpecificTimeAction(payload, language);
+        // DEPRECATED: This action causes the flow to get stuck
+        // If somehow the AI still uses this, just return empty to avoid errors
+        console.warn('[CHAT_SCHEDULER] check_specific_time action used - this is deprecated');
+        return {};
 
       case 'schedule_meeting':
         // Schedule the meeting
-        return await scheduleMeetingAction(payload, currentData, language);
+        return await scheduleMeetingAction(payload, currentData, language, messages);
 
       default:
         return {};
@@ -409,7 +511,8 @@ async function checkSpecificTimeAction(
 async function scheduleMeetingAction(
   payload: Record<string, any>,
   currentData: ExtractedData,
-  language: string
+  language: string,
+  messages: Message[]
 ): Promise<Record<string, any>> {
   try {
     const { slot } = payload;
@@ -432,9 +535,10 @@ async function scheduleMeetingAction(
       expectations: '',
       budget: '',
       timeline: '',
-      selectedSlot: slot,
+      selectedSlot: typeof slot === 'string' ? slot : slot.datetime, // Extract datetime if slot is an object
       timezone: 'America/New_York',
-      language
+      language,
+      messages: messages // Pass conversation transcript
     };
 
     const response = await fetch(

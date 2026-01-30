@@ -6,6 +6,38 @@ const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
 // Email del anfitrión para todas las reuniones
 const HOST_EMAIL = 'elevatetechagency@gmail.com';
 
+/**
+ * Format datetime to human-readable format
+ * Example: "📅 Friday, January 30 at 11:30 AM"
+ */
+function formatDateTime(dateTimeStr: string, language: 'en' | 'es'): string {
+  try {
+    const date = new Date(dateTimeStr);
+    const langLocale = language === 'en' ? 'en-US' : 'es-MX';
+
+    const dayOfWeek = date.toLocaleDateString(langLocale, { weekday: 'long' });
+    const month = date.toLocaleDateString(langLocale, { month: 'long' });
+    const day = date.getDate();
+    const time = date.toLocaleTimeString(langLocale, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    if (language === 'es') {
+      // Capitalize first letter of day and month in Spanish
+      const dayCapitalized = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+      return `📅 ${dayCapitalized}, ${day} de ${month} a las ${time}`;
+    } else {
+      // Capitalize first letter of day in English
+      const dayCapitalized = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+      return `📅 ${dayCapitalized}, ${month} ${day} at ${time}`;
+    }
+  } catch (error) {
+    console.error('Error formatting datetime:', error);
+    return `📅 ${dateTimeStr}`;
+  }
+}
 
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465;
@@ -200,6 +232,12 @@ const EMAIL_TRANSLATIONS = {
   }
 };
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date | string;
+}
+
 interface SendMeetingConfirmationParams {
   to: string;
   name: string;
@@ -211,6 +249,8 @@ interface SendMeetingConfirmationParams {
   scheduledTime: string;
   zoomLink: string;
   language?: 'en' | 'es';
+  messages?: ChatMessage[];
+  phone?: string;
 }
 
 export async function sendMeetingConfirmation(params: SendMeetingConfirmationParams) {
@@ -224,15 +264,64 @@ export async function sendMeetingConfirmation(params: SendMeetingConfirmationPar
     timeline,
     scheduledTime,
     zoomLink,
-    language = 'es'
+    language = 'es',
+    messages = [],
+    phone
   } = params;
 
   const t = EMAIL_TRANSLATIONS.meetingConfirmation[language];
+  const formattedDateTime = formatDateTime(scheduledTime, language);
 
   try {
     // Enviar email al cliente
     const subject = t.subject;
     const preparationItemsHtml = t.preparationItems.map(item => `<li>${item}</li>`).join('');
+
+    // Generate chat transcript HTML if messages exist
+    const langLocale = language === 'en' ? 'en-US' : 'es-MX';
+    const chatTranscriptHTML = messages.length > 0
+      ? messages
+          .map(msg => {
+            const time = new Date(msg.timestamp).toLocaleTimeString(langLocale, {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            if (msg.role === 'user') {
+              return `
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                  <tr>
+                    <td align="right">
+                      <div style="display: inline-block; max-width: 70%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; border-radius: 18px 18px 4px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: left;">
+                        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; text-align: right;">
+                          <strong>${language === 'es' ? 'Tú' : 'You'}</strong> • ${time}
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.4;">${msg.content}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              `;
+            } else {
+              return `
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
+                  <tr>
+                    <td align="left">
+                      <div style="display: inline-block; max-width: 70%; background: white; border: 1px solid #e5e7eb; color: #1f2937; padding: 12px 16px; border-radius: 18px 18px 18px 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">
+                          <strong>Elevate AI</strong> • ${time}
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.4;">${msg.content}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              `;
+            }
+          })
+          .join('')
+      : '';
+
     const html = `
         <!DOCTYPE html>
         <html>
@@ -255,7 +344,7 @@ export async function sendMeetingConfirmation(params: SendMeetingConfirmationPar
 
             <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
               <h2 style="color: #2563eb; margin-top: 0; font-size: 20px;">${t.meetingDetails}</h2>
-              <p style="margin: 10px 0;"><strong>${t.dateTime}</strong> ${scheduledTime}</p>
+              <p style="margin: 10px 0; font-size: 16px;"><strong>${formattedDateTime}</strong></p>
               <p style="margin: 10px 0;">
                 <strong>${t.zoomLink}</strong><br>
                 <a href="${zoomLink}" style="color: #2563eb; text-decoration: none; word-break: break-all;">${zoomLink}</a>
@@ -270,31 +359,63 @@ export async function sendMeetingConfirmation(params: SendMeetingConfirmationPar
             <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
               <h2 style="color: #059669; margin-top: 0; font-size: 20px;">${t.consultationSummary}</h2>
 
+              ${phone ? `
+              <div style="margin: 15px 0;">
+                <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">${language === 'es' ? 'Teléfono' : 'Phone'}</p>
+                <p style="margin: 5px 0; font-weight: 600;">${phone}</p>
+              </div>
+              ` : ''}
+
+              ${company ? `
               <div style="margin: 15px 0;">
                 <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">${t.companyLabel}</p>
                 <p style="margin: 5px 0; font-weight: 600;">${company}</p>
               </div>
+              ` : ''}
 
+              ${challenge ? `
               <div style="margin: 15px 0;">
                 <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">${t.challengeLabel}</p>
                 <p style="margin: 5px 0;">${challenge}</p>
               </div>
+              ` : ''}
 
+              ${objectives && objectives.trim() ? `
               <div style="margin: 15px 0;">
                 <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">${t.objectivesLabel}</p>
                 <p style="margin: 5px 0;">${objectives}</p>
               </div>
+              ` : ''}
 
+              ${budget && budget.trim() ? `
               <div style="margin: 15px 0;">
                 <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">${t.budgetLabel}</p>
                 <p style="margin: 5px 0; font-weight: 600;">${budget}</p>
               </div>
+              ` : ''}
 
+              ${timeline && timeline.trim() ? `
               <div style="margin: 15px 0;">
                 <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">${t.timelineLabel}</p>
                 <p style="margin: 5px 0; font-weight: 600;">${timeline}</p>
               </div>
+              ` : ''}
             </div>
+
+            ${messages.length > 0 ? `
+            <!-- Conversation Transcript -->
+            <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #0891b2; margin-top: 0; font-size: 20px;">💬 ${language === 'es' ? 'Transcripción de la Conversación' : 'Conversation Transcript'}</h2>
+
+              <div style="background: #f9fafb; border-radius: 12px; padding: 20px; max-height: 500px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
+                ${chatTranscriptHTML}
+              </div>
+
+              <p style="margin: 15px 0 0 0; color: #6b7280; font-size: 12px; text-align: center;">
+                ${messages.length} ${language === 'es' ? 'mensajes' : 'messages'}
+              </p>
+            </div>
+            ` : ''}
 
             <div style="background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
               <h3 style="color: #92400e; margin-top: 0; font-size: 16px;">${t.preparationTitle}</h3>

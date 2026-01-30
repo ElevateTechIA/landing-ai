@@ -57,9 +57,31 @@ export default function ChallengeChatbot() {
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isSelectingLanguage, setIsSelectingLanguage] = useState(true);
+  const [isConfirmingData, setIsConfirmingData] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Loading messages in both languages
+  const loadingMessages = {
+    es: [
+      '🤖 Pensando...',
+      '✨ Trabajando para ti...',
+      '🧠 Procesando tu solicitud...',
+      '💡 Haciendo algo inteligente...',
+      '⚡ Analizando información...',
+      '🎯 Encontrando la mejor opción...'
+    ],
+    en: [
+      '🤖 Thinking...',
+      '✨ Working for you...',
+      '🧠 Processing your request...',
+      '💡 Doing something smart...',
+      '⚡ Analyzing information...',
+      '🎯 Finding the best option...'
+    ]
+  };
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -77,6 +99,20 @@ export default function ChallengeChatbot() {
   useEffect(() => {
     setChallengeData(prev => ({ ...prev, language }));
   }, [language]);
+
+  // Rotate loading messages while loading
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex(prev => (prev + 1) % loadingMessages[challengeData.language].length);
+    }, 2000); // Change message every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [isLoading, challengeData.language, loadingMessages]);
 
   const addMessage = (role: 'user' | 'assistant', content: string) => {
     setMessages(prev => [...prev, { role, content, timestamp: new Date() }]);
@@ -124,6 +160,13 @@ export default function ChallengeChatbot() {
         // Add AI response
         addMessage('assistant', data.response);
 
+        // Check if this is a confirmation request
+        if (data.action === 'confirm_data') {
+          setIsConfirmingData(true);
+        } else {
+          setIsConfirmingData(false);
+        }
+
         // Execute action (always execute, even if payload is empty)
         await executeAction(data.action, data.actionPayload || {});
       } catch (error) {
@@ -148,6 +191,7 @@ export default function ChallengeChatbot() {
     setInput('');
     setIsLoading(true);
     setAlternatives([]);
+    setIsConfirmingData(false);
 
     try {
       // Call AI conversation API
@@ -175,6 +219,13 @@ export default function ChallengeChatbot() {
 
       // Add AI response
       addMessage('assistant', data.response);
+
+      // Check if this is a confirmation request
+      if (data.action === 'confirm_data') {
+        setIsConfirmingData(true);
+      } else {
+        setIsConfirmingData(false);
+      }
 
       // Execute action (always execute, even if payload is empty)
       await executeAction(data.action, data.actionPayload || {});
@@ -214,18 +265,8 @@ export default function ChallengeChatbot() {
         break;
 
       case 'schedule_meeting':
-        // Schedule and show success
-        if (payload.success) {
-          setIsScheduling(true);
-          // Meeting scheduled successfully
-          if (payload.zoomLink) {
-            const meetingInfo = language === 'es'
-              ? `🎉 ¡Reunión agendada exitosamente!\n\n📅 Tu reunión ha sido confirmada.\n\n🔗 Link Zoom: ${payload.zoomLink}`
-              : `🎉 Meeting scheduled successfully!\n\n📅 Your meeting has been confirmed.\n\n🔗 Zoom Link: ${payload.zoomLink}`;
-            addMessage('assistant', meetingInfo);
-          }
-          setIsScheduling(false);
-        }
+        // Don't add extra message here - the backend already returned the success message
+        setIsScheduling(false);
         break;
 
       default:
@@ -237,8 +278,65 @@ export default function ChallengeChatbot() {
   /**
    * Handle slot selection from alternatives
    */
-  const handleSelectSlot = (slot: Alternative) => {
-    handleSendMessage(slot.displayText);
+  const handleSelectSlot = async (slot: Alternative) => {
+    // Add user message showing their selection
+    addMessage('user', slot.displayText);
+    setInput('');
+    setIsLoading(true);
+    setAlternatives([]);
+    setIsConfirmingData(false);
+
+    try {
+      // Directly call schedule API with slot data
+      const response = await fetch('/api/chat-scheduler', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, { role: 'user', content: slot.displayText, timestamp: new Date().toISOString() }],
+          language: challengeData.language,
+          currentData: challengeData,
+          selectedSlot: slot // Pass the full slot object directly
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('[CHATBOT] Schedule Response:', data);
+
+      // Update state with extracted data
+      if (data.extractedData) {
+        setChallengeData(prev => ({ ...prev, ...data.extractedData }));
+      }
+
+      // Add AI response
+      addMessage('assistant', data.response);
+
+      // Execute action
+      await executeAction(data.action, data.actionPayload || {});
+
+    } catch (error) {
+      console.error('[CHATBOT] Error scheduling:', error);
+      addMessage('assistant', challengeData.language === 'es'
+        ? '❌ Disculpa, hubo un error al agendar. Por favor intenta de nuevo.'
+        : '❌ Sorry, there was an error scheduling. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Handle confirmation response
+   */
+  const handleConfirmation = (confirmed: boolean) => {
+    setIsConfirmingData(false);
+    if (confirmed) {
+      handleSendMessage(challengeData.language === 'es' ? 'Sí, es correcto' : 'Yes, that\'s correct');
+    } else {
+      handleSendMessage(challengeData.language === 'es' ? 'Quiero cambiar algo' : 'I want to change something');
+    }
   };
 
   /**
@@ -298,8 +396,29 @@ export default function ChallengeChatbot() {
                   </div>
                 </div>
               )}
+              {/* Show confirmation buttons when confirming data */}
+              {msg.role === 'assistant' && idx === messages.length - 1 && !isSelectingLanguage && isConfirmingData && (
+                <div className="flex justify-start mt-3 ml-0">
+                  <div className="space-y-2 w-full">
+                    <button
+                      onClick={() => handleConfirmation(true)}
+                      disabled={isLoading}
+                      className="w-full text-left px-4 py-2 bg-green-50 border border-green-300 rounded-lg hover:bg-green-100 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-green-900 font-medium"
+                    >
+                      ✅ {challengeData.language === 'es' ? 'Sí, es correcto' : 'Yes, that\'s correct'}
+                    </button>
+                    <button
+                      onClick={() => handleConfirmation(false)}
+                      disabled={isLoading}
+                      className="w-full text-left px-4 py-2 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 hover:border-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-yellow-900 font-medium"
+                    >
+                      ✏️ {challengeData.language === 'es' ? 'Quiero cambiar algo' : 'I want to change something'}
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Show alternatives/slots right after assistant message */}
-              {msg.role === 'assistant' && idx === messages.length - 1 && !isSelectingLanguage && alternatives.length > 0 && (
+              {msg.role === 'assistant' && idx === messages.length - 1 && !isSelectingLanguage && !isConfirmingData && alternatives.length > 0 && (
                 <div className="flex justify-start mt-3 ml-0">
                   <div className="space-y-2 w-full">
                     {alternatives.map((slot, slotIdx) => (
@@ -319,20 +438,25 @@ export default function ChallengeChatbot() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-100 text-gray-900 px-4 py-2 rounded-lg rounded-bl-none">
-                <div className="flex space-x-2">
-                  <div
-                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                    style={{ animationDelay: '0ms' }}
-                  />
-                  <div
-                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                    style={{ animationDelay: '150ms' }}
-                  />
-                  <div
-                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                    style={{ animationDelay: '300ms' }}
-                  />
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 text-gray-800 px-5 py-3 rounded-lg rounded-bl-none shadow-sm border border-blue-100">
+                <div className="flex items-center space-x-3">
+                  <div className="flex space-x-1">
+                    <div
+                      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '0ms' }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '150ms' }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '300ms' }}
+                    />
+                  </div>
+                  <p className="text-sm font-medium animate-pulse">
+                    {loadingMessages[challengeData.language][loadingMessageIndex]}
+                  </p>
                 </div>
               </div>
             </div>

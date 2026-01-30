@@ -5,6 +5,12 @@ import { createZoomMeeting } from '@/lib/zoom';
 import { createCalendarEvent } from '@/lib/google-calendar';
 
 // Interfaces
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string | Date;
+}
+
 interface ScheduleRequest {
   name: string;
   email: string;
@@ -18,6 +24,7 @@ interface ScheduleRequest {
   selectedSlot: string;
   timezone: string;
   language?: 'en' | 'es';
+  messages?: ChatMessage[];
 }
 
 // Guardar reunión en Firebase
@@ -78,7 +85,10 @@ async function sendConfirmationEmail(data: ScheduleRequest & { zoomLink: string 
       budget: data.budget,
       timeline: data.timeline,
       scheduledTime: data.selectedSlot,
-      zoomLink: data.zoomLink
+      zoomLink: data.zoomLink,
+      language: data.language || 'en',
+      messages: data.messages || [],
+      phone: data.phone
     });
 
     if (result.success) {
@@ -108,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     // Parsear la fecha seleccionada
     const meetingDate = new Date(data.selectedSlot);
-    const meetingEndDate = new Date(meetingDate.getTime() + 60 * 60 * 1000); // +1 hora
+    const meetingEndDate = new Date(meetingDate.getTime() + 30 * 60 * 1000); // +30 minutos
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
     let zoomMeeting;
@@ -119,7 +129,7 @@ export async function POST(request: NextRequest) {
       zoomMeeting = await createZoomMeeting(
         `Consulta: ${data.name} - ${data.company}`,
         meetingDate.toISOString(),
-        60,
+        30,
         data.timezone || 'America/Mexico_City'
       );
       console.log('Zoom meeting created:', zoomMeeting.id);
@@ -129,7 +139,7 @@ export async function POST(request: NextRequest) {
         id: `temp-${Date.now()}`,
         join_url: `https://zoom.us/j/scheduled-meeting-${Date.now()}`,
         start_time: meetingDate.toISOString(),
-        duration: 60
+        duration: 30
       };
     }
 

@@ -257,6 +257,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Sort slots chronologically from earliest to latest
+    availableSlots.sort((a, b) => {
+      const dateA = new Date(a.datetime).getTime();
+      const dateB = new Date(b.datetime).getTime();
+      return dateA - dateB;
+    });
+
     // Create a natural language summary for the agent
     const slotDescriptions = availableSlots.map((slot, index) =>
       `${index + 1}. ${slot.dayOfWeek}, ${slot.date} at ${slot.time}`

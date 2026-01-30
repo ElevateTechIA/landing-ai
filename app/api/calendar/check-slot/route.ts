@@ -142,7 +142,7 @@ EJEMPLOS DE ENTRADAS:
 async function isSlotAvailable(datetime: string): Promise<boolean> {
   try {
     const slotDate = new Date(datetime);
-    const endTime = new Date(slotDate.getTime() + 60 * 60 * 1000); // +1 hora
+    const endTime = new Date(slotDate.getTime() + 30 * 60 * 1000); // +30 minutos
     const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
     // Verificar en Firebase primero (si está disponible)
