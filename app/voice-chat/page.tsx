@@ -293,11 +293,7 @@ export default function VoiceChatPage() {
 
       if (data.success) {
         console.log('[PROCESS] Conversation processed successfully:', data);
-        alert(
-          language === 'es'
-            ? `✅ Procesado exitosamente!\n\n${data.data.emailsSent.clientEmail ? 'Email enviado a tu dirección.' : 'Email enviado al host.'}\n\nRevisarás un email con los detalles de la reunión.`
-            : `✅ Processed successfully!\n\n${data.data.emailsSent.clientEmail ? 'Email sent to your address.' : 'Email sent to host.'}\n\nYou'll receive an email with meeting details.`
-        );
+        // Alert disabled - emails will be sent automatically
       } else {
         console.error('[PROCESS] Processing failed:', data);
       }
@@ -451,12 +447,12 @@ export default function VoiceChatPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {language === 'es' ? 'Chat de Voz con Transcripción' : 'Voice Chat with Transcription'}
+                {language === 'es' ? 'Agenda tu Reunión por Voz' : 'Schedule Your Meeting by Voice'}
               </h1>
               <p className="mt-2 text-gray-600">
                 {language === 'es'
-                  ? 'Habla con el agente y ve la conversación en tiempo real'
-                  : 'Talk with the agent and see the conversation in real-time'
+                  ? 'Habla naturalmente con nuestro asistente IA y agenda tu consulta en minutos'
+                  : 'Talk naturally with our AI assistant and schedule your consultation in minutes'
                 }
               </p>
             </div>
@@ -597,26 +593,13 @@ export default function VoiceChatPage() {
 
                     <button
                       onClick={endConversation}
-                      className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
+                      className="hidden lg:flex w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 items-center justify-center gap-2 shadow-lg"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                       <span>{language === 'es' ? 'Finalizar Llamada' : 'End Call'}</span>
                     </button>
-
-                    {/* Manual Save Button */}
-                    {messages.length > 0 && (
-                      <button
-                        onClick={saveConversationToStorage}
-                        className="w-full mt-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                        </svg>
-                        <span className="text-sm">{language === 'es' ? 'Guardar Ahora' : 'Save Now'}</span>
-                      </button>
-                    )}
                   </div>
                 )}
 
@@ -652,12 +635,12 @@ export default function VoiceChatPage() {
               {/* Chat Header */}
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4 rounded-t-2xl">
                 <h3 className="text-lg font-semibold">
-                  {language === 'es' ? '📝 Transcripción en Tiempo Real' : '📝 Real-Time Transcription'}
+                  {language === 'es' ? '💬 Conversación' : '💬 Conversation'}
                 </h3>
                 <p className="text-sm text-purple-100">
                   {language === 'es'
-                    ? 'La conversación se guarda automáticamente al finalizar'
-                    : 'Conversation is automatically saved when finished'
+                    ? 'Tu información se procesa automáticamente al finalizar'
+                    : 'Your information is processed automatically when finished'
                   }
                 </p>
               </div>
@@ -742,6 +725,16 @@ export default function VoiceChatPage() {
                       : '💡 Use keyboard for complex info (emails, names, addresses)'
                     }
                   </p>
+                  {/* Mobile End Call Button */}
+                  <button
+                    onClick={endConversation}
+                    className="lg:hidden w-full mt-3 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>{language === 'es' ? 'Finalizar Llamada' : 'End Call'}</span>
+                  </button>
                 </div>
               ) : (
                 <div className="bg-gray-100 px-6 py-3 rounded-b-2xl border-t border-gray-200">
