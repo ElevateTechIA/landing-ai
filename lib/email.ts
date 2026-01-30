@@ -44,7 +44,7 @@ function formatDateTime(dateTimeStr: string, language: 'en' | 'es'): string {
       const dayCapitalized = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
       return `📅 ${dayCapitalized}, ${month} ${day} at ${time}`;
     }
-  } catch (error) {
+  } catch (error) { 
     console.error('Error formatting datetime:', error);
     return `📅 ${dateTimeStr}`;
   }
