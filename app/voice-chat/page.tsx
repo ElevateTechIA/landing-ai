@@ -99,24 +99,48 @@ function formatTranscriptText(text: string): string {
     return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   });
 
-  // Format times: "twelve zero zero PM" → "12:00 PM"
-  // Also handles "at twelve zero zero PM Eastern Time"
-  const timePattern = /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)[\s]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s]+(AM|PM|am|pm)\b/gi;
-
-  const timeWords: { [key: string]: string } = {
+  // Extended time words mapping for hours
+  const hourWords: { [key: string]: string } = {
     ...numberWords,
     ten: '10',
     eleven: '11',
     twelve: '12',
   };
 
-  formatted = formatted.replace(timePattern, (match) => {
+  // Mapping for common minute values
+  const minuteWords: { [key: string]: string } = {
+    'o\'clock': '00',
+    'oclock': '00',
+    'fifteen': '15',
+    'thirty': '30',
+    'forty-five': '45',
+    'fortyfive': '45',
+  };
+
+  // Format times with word-based minutes: "eight thirty AM" → "8:30 AM"
+  const timeWithMinutesPattern = /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)[\s]+(fifteen|thirty|forty-five|fortyfive|o'clock|oclock)[\s]+(AM|PM|am|pm)\b/gi;
+
+  formatted = formatted.replace(timeWithMinutesPattern, (match) => {
+    const parts = match.toLowerCase().match(/one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|thirty|forty-five|fortyfive|o'clock|oclock|am|pm/g);
+    if (!parts || parts.length < 3) return match;
+
+    const hour = hourWords[parts[0]] || parts[0];
+    const minutes = minuteWords[parts[1]] || parts[1];
+    const period = parts[2].toUpperCase();
+
+    return `${hour}:${minutes} ${period}`;
+  });
+
+  // Format times with digit-by-digit minutes: "twelve zero zero PM" → "12:00 PM"
+  const timeDigitPattern = /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)[\s]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s]+(zero|one|two|three|four|five|six|seven|eight|nine)[\s]+(AM|PM|am|pm)\b/gi;
+
+  formatted = formatted.replace(timeDigitPattern, (match) => {
     const parts = match.toLowerCase().match(/zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|am|pm/g);
     if (!parts || parts.length !== 4) return match;
 
-    const hour = timeWords[parts[0]] || parts[0];
-    const minute1 = timeWords[parts[1]] || parts[1];
-    const minute2 = timeWords[parts[2]] || parts[2];
+    const hour = hourWords[parts[0]] || parts[0];
+    const minute1 = hourWords[parts[1]] || parts[1];
+    const minute2 = hourWords[parts[2]] || parts[2];
     const period = parts[3].toUpperCase();
 
     return `${hour}:${minute1}${minute2} ${period}`;

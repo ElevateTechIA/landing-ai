@@ -126,9 +126,19 @@ export async function GET(request: NextRequest) {
 
           const slotEnd = new Date(slotStart.getTime() + (MEETING_DURATION_MINUTES * 60 * 1000));
 
-          // Check if slot end is within business hours
-          if (slotEnd.getHours() > BUSINESS_END_HOUR ||
-              (slotEnd.getHours() === BUSINESS_END_HOUR && slotEnd.getMinutes() > 0)) {
+          // Check if slot end is within business hours (using Eastern Time)
+          const slotEndETFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+          const slotEndETParts = slotEndETFormatter.formatToParts(slotEnd);
+          const slotEndETHour = parseInt(slotEndETParts.find(p => p.type === 'hour')!.value);
+          const slotEndETMinute = parseInt(slotEndETParts.find(p => p.type === 'minute')!.value);
+
+          if (slotEndETHour > BUSINESS_END_HOUR ||
+              (slotEndETHour === BUSINESS_END_HOUR && slotEndETMinute > 0)) {
             continue;
           }
 
