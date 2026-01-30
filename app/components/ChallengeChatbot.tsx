@@ -281,8 +281,29 @@ export default function ChallengeChatbot() {
                   </p>
                 </div>
               </div>
-              {/* Show alternatives right after assistant message */}
-              {msg.role === 'assistant' && idx === messages.length - 1 && alternatives.length > 0 && (
+              {/* Show language selection buttons after initial message */}
+              {msg.role === 'assistant' && idx === messages.length - 1 && isSelectingLanguage && (
+                <div className="flex justify-start mt-3 ml-0">
+                  <div className="space-y-2 w-full">
+                    <button
+                      onClick={() => handleSelectLanguage('en')}
+                      disabled={isLoading}
+                      className="w-full text-left px-4 py-2 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-blue-900 font-medium"
+                    >
+                      🇺🇸 English
+                    </button>
+                    <button
+                      onClick={() => handleSelectLanguage('es')}
+                      disabled={isLoading}
+                      className="w-full text-left px-4 py-2 bg-green-50 border border-green-300 rounded-lg hover:bg-green-100 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-green-900 font-medium"
+                    >
+                      🇪🇸 Español
+                    </button>
+                  </div>
+                </div>
+              )}
+              {/* Show alternatives/slots right after assistant message */}
+              {msg.role === 'assistant' && idx === messages.length - 1 && !isSelectingLanguage && alternatives.length > 0 && (
                 <div className="flex justify-start mt-3 ml-0">
                   <div className="space-y-2 w-full">
                     {alternatives.map((slot, slotIdx) => (
@@ -325,45 +346,24 @@ export default function ChallengeChatbot() {
 
         {/* Input area */}
         <div className="border-t border-gray-200 bg-white p-4">
-          {isSelectingLanguage ? (
-            // Language selection buttons
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleSelectLanguage('en')}
-                disabled={isLoading}
-                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-lg"
-              >
-                🇺🇸 English
-              </button>
-              <button
-                onClick={() => handleSelectLanguage('es')}
-                disabled={isLoading}
-                className="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-lg"
-              >
-                🇪🇸 Español
-              </button>
-            </div>
-          ) : (
-            // Regular input
-            <form onSubmit={handleSubmit} className="flex gap-3">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading || isScheduling}
-                placeholder={challengeData.language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900"
-              />
-              <button
-                type="submit"
-                disabled={isLoading || isScheduling || !input.trim()}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
-              >
-                {isLoading || isScheduling ? '...' : (challengeData.language === 'es' ? 'Enviar' : 'Send')}
-              </button>
-            </form>
-          )}
+          <form onSubmit={handleSubmit} className="flex gap-3">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading || isScheduling}
+              placeholder={challengeData.language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || isScheduling || !input.trim()}
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              {isLoading || isScheduling ? '...' : (challengeData.language === 'es' ? 'Enviar' : 'Send')}
+            </button>
+          </form>
         </div>
       </div>
     </div>
