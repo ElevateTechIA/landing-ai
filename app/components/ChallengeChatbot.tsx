@@ -56,6 +56,7 @@ export default function ChallengeChatbot() {
   });
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [isSelectingLanguage, setIsSelectingLanguage] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,6 +80,63 @@ export default function ChallengeChatbot() {
 
   const addMessage = (role: 'user' | 'assistant', content: string) => {
     setMessages(prev => [...prev, { role, content, timestamp: new Date() }]);
+  };
+
+  /**
+   * Handle language selection
+   */
+  const handleSelectLanguage = (lang: 'en' | 'es') => {
+    addMessage('user', lang === 'en' ? '🇺🇸 English' : '🇪🇸 Español');
+    setChallengeData(prev => ({ ...prev, language: lang }));
+    setIsSelectingLanguage(false);
+    setIsLoading(true);
+
+    // Send language selection to AI
+    setTimeout(async () => {
+      try {
+        const updatedMessages = [
+          ...messages,
+          { role: 'user', content: lang === 'en' ? 'English' : 'Español', timestamp: new Date().toISOString() }
+        ];
+
+        const response = await fetch('/api/chat-scheduler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: updatedMessages,
+            language: lang,
+            currentData: { language: lang }
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('[CHATBOT] AI Response:', data);
+
+        // Update state with extracted data
+        if (data.extractedData) {
+          setChallengeData(prev => ({ ...prev, ...data.extractedData }));
+        }
+
+        // Add AI response
+        addMessage('assistant', data.response);
+
+        // Execute action
+        if (data.actionPayload) {
+          await executeAction(data.action, data.actionPayload);
+        }
+      } catch (error) {
+        console.error('[CHATBOT] Error:', error);
+        addMessage('assistant', lang === 'en'
+          ? '❌ Sorry, there was an error. Please try again.'
+          : '❌ Disculpa, hubo un error. Por favor intenta de nuevo.');
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
   };
 
   /**
@@ -127,7 +185,7 @@ export default function ChallengeChatbot() {
 
     } catch (error) {
       console.error('[CHATBOT] Error:', error);
-      addMessage('assistant', language === 'es'
+      addMessage('assistant', challengeData.language === 'es'
         ? '❌ Disculpa, hubo un error procesando tu mensaje. Por favor intenta de nuevo.'
         : '❌ Sorry, there was an error processing your message. Please try again.');
     } finally {
@@ -270,24 +328,45 @@ export default function ChallengeChatbot() {
 
         {/* Input area */}
         <div className="border-t border-gray-200 bg-white p-4">
-          <form onSubmit={handleSubmit} className="flex gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={isLoading || isScheduling}
-              placeholder={language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || isScheduling || !input.trim()}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {isLoading || isScheduling ? '...' : (language === 'es' ? 'Enviar' : 'Send')}
-            </button>
-          </form>
+          {isSelectingLanguage ? (
+            // Language selection buttons
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleSelectLanguage('en')}
+                disabled={isLoading}
+                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-lg"
+              >
+                🇺🇸 English
+              </button>
+              <button
+                onClick={() => handleSelectLanguage('es')}
+                disabled={isLoading}
+                className="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-lg"
+              >
+                🇪🇸 Español
+              </button>
+            </div>
+          ) : (
+            // Regular input
+            <form onSubmit={handleSubmit} className="flex gap-3">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={isLoading || isScheduling}
+                placeholder={challengeData.language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900"
+              />
+              <button
+                type="submit"
+                disabled={isLoading || isScheduling || !input.trim()}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                {isLoading || isScheduling ? '...' : (challengeData.language === 'es' ? 'Enviar' : 'Send')}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
