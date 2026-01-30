@@ -25,7 +25,7 @@ export default function HeroSectionOriginal() {
           <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed mb-8 lg:mb-10">
             {t('heroOriginal.description')}
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
+          <div>
             <button
               onClick={scrollToContact}
               className="w-full sm:w-auto bg-blue-600 text-white py-3 px-8 lg:py-4 lg:px-10 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
@@ -34,12 +34,6 @@ export default function HeroSectionOriginal() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </button>
-            <button
-              onClick={() => scrollToSection('process')}
-              className="w-full sm:w-auto bg-white text-blue-600 border-2 border-blue-600 py-3 px-8 lg:py-4 lg:px-10 rounded-lg font-medium hover:bg-blue-50 transition-colors"
-            >
-              {t('heroOriginal.ctaSecondary')}
             </button>
           </div>
         </div>
