@@ -157,7 +157,9 @@ Return ONLY the JSON object, no additional text.
         .replace(/\spunto\s/g, '.')         // " punto " -> "." (Spanish)
         .replace(/\.com\./g, '.com')        // ".com." -> ".com"
         .replace(/\.net\./g, '.net')        // ".net." -> ".net"
-        .replace(/\s+/g, '');               // Remove all spaces
+        .replace(/\s+/g, '')                // Remove all spaces
+        .normalize('NFD')                   // Decompose accented characters
+        .replace(/[\u0300-\u036f]/g, '');   // Remove diacritics (accents)
 
       // If still missing @, try to detect and fix common patterns
       if (!fixedEmail.includes('@')) {
