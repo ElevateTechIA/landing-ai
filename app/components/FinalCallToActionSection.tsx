@@ -19,25 +19,33 @@ export default function FinalCallToActionSection() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/request-call', {
+      const response = await fetch('/api/twilio/initiate-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({
+          phoneNumber: phone,
+          customerName: name || 'Not provided',
+          agentId: 'agent_2301kg3qxsdcfgha22tf1eq8vr4z',
+        }),
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         alert(t('language') === 'es'
-          ? '¡Solicitud enviada! Te llamaremos pronto.'
-          : 'Request sent! We will call you soon.');
+          ? '¡Llamada iniciada! Recibirás una llamada en breve.'
+          : 'Call initiated! You will receive a call shortly.');
         setShowCallForm(false);
         setName('');
         setPhone('');
+      } else {
+        throw new Error(data.error || 'Failed to initiate call');
       }
     } catch (error) {
       console.error('Error requesting call:', error);
       alert(t('language') === 'es'
-        ? 'Error al enviar la solicitud. Por favor intenta de nuevo.'
-        : 'Error sending request. Please try again.');
+        ? 'Error al iniciar la llamada. Por favor intenta de nuevo.'
+        : 'Error initiating call. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
