@@ -141,7 +141,54 @@ Return ONLY the JSON object, no additional text.
     const extractedData = JSON.parse(jsonMatch[0]);
     console.log('[WEBHOOK] Extracted data:', extractedData);
 
-    // 5. Validate required data
+    // 5. Fix and validate email format
+    if (extractedData.email) {
+      const originalEmail = extractedData.email;
+
+      // Fix common email format issues from voice transcription
+      let fixedEmail = originalEmail
+        .toLowerCase()
+        .replace(/\s+at\s+/g, '@')     // "at" -> "@"
+        .replace(/\sat\s/g, '@')        // " at " -> "@"
+        .replace(/\sdot\s/g, '.')       // " dot " -> "."
+        .replace(/\.com\./g, '.com')    // ".com." -> ".com"
+        .replace(/\.net\./g, '.net')    // ".net." -> ".net"
+        .replace(/\s+/g, '');           // Remove all spaces
+
+      // If still missing @, try to detect and fix common patterns
+      if (!fixedEmail.includes('@')) {
+        // Try to detect pattern like "cesarvega.col.gmail.com"
+        // Should be "cesarvega.col@gmail.com"
+        const parts = fixedEmail.split('.');
+        if (parts.length >= 3) {
+          // Check if last 2 parts look like a domain (e.g., gmail.com, outlook.com)
+          const possibleDomain = parts[parts.length - 2] + '.' + parts[parts.length - 1];
+          const commonDomains = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com'];
+
+          if (commonDomains.includes(possibleDomain)) {
+            // Insert @ before the domain
+            const localPart = parts.slice(0, parts.length - 2).join('.');
+            fixedEmail = localPart + '@' + possibleDomain;
+            console.log('[WEBHOOK] Fixed email format (missing @):', { original: originalEmail, fixed: fixedEmail });
+          }
+        }
+      }
+
+      // Basic email validation
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fixedEmail);
+
+      if (originalEmail !== fixedEmail && isValidEmail) {
+        console.log('[WEBHOOK] Email format corrected:', { original: originalEmail, fixed: fixedEmail });
+        extractedData.email = fixedEmail;
+      } else if (!isValidEmail) {
+        console.warn('[WEBHOOK] Invalid email format:', fixedEmail);
+        extractedData.isComplete = false;
+      } else {
+        extractedData.email = fixedEmail;
+      }
+    }
+
+    // 6. Validate required data
     if (!extractedData.isComplete || !extractedData.email || !extractedData.name) {
       console.log('[WEBHOOK] Incomplete data, skipping appointment creation');
       return NextResponse.json({
@@ -150,12 +197,12 @@ Return ONLY the JSON object, no additional text.
       });
     }
 
-    // 6. Determine meeting date/time
+    // 7. Determine meeting date/time
     const meetingDateTime = extractedData.preferredDateTime
       ? new Date(extractedData.preferredDateTime)
       : new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
 
-    // 7. Create Zoom meeting
+    // 8. Create Zoom meeting
     const zoomMeeting = await createZoomMeeting(
       `Meeting with ${extractedData.name}`,
       meetingDateTime.toISOString(),
@@ -165,7 +212,7 @@ Return ONLY the JSON object, no additional text.
 
     console.log('[WEBHOOK] Zoom meeting created:', zoomMeeting.join_url);
 
-    // 8. Create Google Calendar event
+    // 9. Create Google Calendar event
 
     const calendarEvent = await createCalendarEvent({
       summary: `Meeting with ${extractedData.name}`,
@@ -183,7 +230,7 @@ Return ONLY the JSON object, no additional text.
 
     console.log('[WEBHOOK] Calendar event created:', calendarEvent.id);
 
-    // 9. Save to Firebase
+    // 10. Save to Firebase
     const meetingData = {
       name: extractedData.name,
       email: extractedData.email,
@@ -215,7 +262,7 @@ Return ONLY the JSON object, no additional text.
       console.error('[WEBHOOK] Failed to save meeting:', saveResult.error);
     }
 
-    // 10. Send confirmation emails
+    // 11. Send confirmation emails
     const language = extractedData.language || 'en';
 
     // Send email to client
