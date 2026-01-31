@@ -146,9 +146,15 @@ Return ONLY the JSON object, no additional text.
     const calendarEvent = await createCalendarEvent({
       summary: `Meeting with ${extractedData.name}`,
       description: `Challenge: ${extractedData.challenge || 'Not specified'}\n\nZoom: ${zoomMeeting.join_url}`,
-      startTime: meetingDateTime,
-      endTime: new Date(meetingDateTime.getTime() + 30 * 60 * 1000),
-      attendees: [extractedData.email],
+      start: {
+        dateTime: meetingDateTime.toISOString(),
+        timeZone: 'America/New_York',
+      },
+      end: {
+        dateTime: new Date(meetingDateTime.getTime() + 30 * 60 * 1000).toISOString(),
+        timeZone: 'America/New_York',
+      },
+      attendees: [{ email: extractedData.email }],
     });
 
     console.log('[WEBHOOK] Calendar event created:', calendarEvent.id);
