@@ -56,6 +56,10 @@ export async function POST(request: NextRequest) {
       var payload = await request.json();
     }
 
+    // Debug: Log the entire payload structure to see what ElevenLabs is actually sending
+    console.log('[WEBHOOK] Full payload keys:', Object.keys(payload));
+    console.log('[WEBHOOK] Full payload:', JSON.stringify(payload, null, 2));
+
     const { conversation_id, ended_at, end_reason } = payload;
 
     console.log('[WEBHOOK] Conversation ID:', conversation_id);
