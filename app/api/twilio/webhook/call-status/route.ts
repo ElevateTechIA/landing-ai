@@ -48,12 +48,13 @@ export async function POST(request: NextRequest) {
       Timestamp,
     } = params;
 
-    console.log('[TWILIO_WEBHOOK] Received status update:', {
-      callSid: CallSid,
-      status: CallStatus,
-      direction: Direction,
-      duration: Duration,
-    });
+    console.log('[TWILIO-STATUS] Call SID:', CallSid);
+    console.log('[TWILIO-STATUS] Status:', CallStatus);
+    console.log('[TWILIO-STATUS] Direction:', Direction);
+    console.log('[TWILIO-STATUS] Duration:', Duration);
+
+    // Log all form data for debugging
+    console.log('[TWILIO-STATUS] All params:', params);
 
     if (!CallSid) {
       return NextResponse.json(
@@ -117,7 +118,9 @@ export async function POST(request: NextRequest) {
 
     // 6. Handle post-call actions
     if (CallStatus === 'completed') {
-      // Log call completion
+      console.log('[TWILIO-STATUS] Call completed, webhook should handle scheduling');
+
+      // Log call completion details
       console.log('[TWILIO_WEBHOOK] Call completed:', {
         customer: callRecord.customerName,
         phone: callRecord.phoneNumber,
@@ -127,10 +130,10 @@ export async function POST(request: NextRequest) {
         recordingUrl: RecordingUrl,
       });
 
-      // TODO: Send custom notification email for completed calls
-      // TODO: Fetch and store ElevenLabs transcript
-      // TODO: Parse structured data from conversation
-      // TODO: Trigger follow-up actions (schedule meeting, etc.)
+      // NOTE: Appointment scheduling is now handled by ElevenLabs webhook
+      // at /api/elevenlabs/webhook/conversation-ended
+      // This webhook receives the conversation.ended event and processes
+      // the transcript to create Zoom meeting, calendar event, and send emails
     }
 
     // 7. Handle failed calls

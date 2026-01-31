@@ -149,6 +149,16 @@ function formatTranscriptText(text: string): string {
   return formatted;
 }
 
+// Goodbye phrases in both languages for auto call termination
+const GOODBYE_PHRASES = [
+  // English
+  'goodbye', 'bye', 'talk soon', 'talk to you soon', 'see you',
+  'take care', 'have a good', 'thanks for your time',
+  // Spanish
+  'adios', 'adiós', 'hasta luego', 'nos vemos', 'chao', 'chau',
+  'que tengas', 'gracias por tu tiempo', 'hasta pronto'
+];
+
 export default function VoiceChatPage() {
   const { language } = useLanguage();
   const [isCallStarted, setIsCallStarted] = useState(false);
@@ -158,7 +168,9 @@ export default function VoiceChatPage() {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [textInput, setTextInput] = useState('');
   const [callDuration, setCallDuration] = useState(0); // Duration in seconds
+  const [goodbyeDetected, setGoodbyeDetected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const goodbyeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use refs to maintain latest values for saving
   const messagesRef = useRef<Message[]>([]);
@@ -178,6 +190,15 @@ export default function VoiceChatPage() {
     startTimeRef.current = startTime;
   }, [startTime]);
 
+  // Cleanup goodbye timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (goodbyeTimeoutRef.current) {
+        clearTimeout(goodbyeTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs');
@@ -190,9 +211,18 @@ export default function VoiceChatPage() {
     onDisconnect: async () => {
       console.log('Disconnected from ElevenLabs');
       setIsCallStarted(false);
+      setGoodbyeDetected(false);
+
+      // Clear goodbye timeout if exists
+      if (goodbyeTimeoutRef.current) {
+        clearTimeout(goodbyeTimeoutRef.current);
+        goodbyeTimeoutRef.current = null;
+      }
+
       saveConversationToStorage();
 
-      // Process conversation: extract info, create meeting, send emails
+      // NOTE: Webhook handles appointment scheduling now
+      // Frontend processing kept as fallback for testing
       await processConversation();
     },
     onMessage: (message: any) => {
@@ -229,6 +259,12 @@ export default function VoiceChatPage() {
     },
   });
 
+  // Function to detect goodbye phrases in message
+  const detectGoodbye = (message: string): boolean => {
+    const lowerMessage = message.toLowerCase();
+    return GOODBYE_PHRASES.some(phrase => lowerMessage.includes(phrase));
+  };
+
   const addMessage = (role: 'user' | 'agent', text: string) => {
     const newMessage: Message = {
       id: `msg_${Date.now()}_${Math.random()}`,
@@ -242,6 +278,23 @@ export default function VoiceChatPage() {
       console.log('📊 Updated messages array:', updated.length, 'messages');
       return updated;
     });
+
+    // Check for goodbye in both agent and user messages
+    if (detectGoodbye(text) && isCallStarted) {
+      console.log('[GOODBYE] Detected goodbye phrase:', text);
+      setGoodbyeDetected(true);
+
+      // Clear any existing timeout
+      if (goodbyeTimeoutRef.current) {
+        clearTimeout(goodbyeTimeoutRef.current);
+      }
+
+      // Wait 2 seconds then auto-end call
+      goodbyeTimeoutRef.current = setTimeout(() => {
+        console.log('[AUTO-END] Ending conversation after goodbye');
+        conversation.endSession();
+      }, 2000);
+    }
   };
 
   const processConversation = async () => {
