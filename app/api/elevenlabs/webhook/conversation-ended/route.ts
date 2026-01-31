@@ -126,19 +126,22 @@ Return ONLY the JSON object, no additional text.
       });
     }
 
-    // 5. Create Zoom meeting
-    const zoomMeeting = await createZoomMeeting({
-      topic: `Meeting with ${extractedData.name}`,
-      duration: 30,
-      timezone: 'America/New_York',
-    });
-
-    console.log('[WEBHOOK] Zoom meeting created:', zoomMeeting.join_url);
-
-    // 6. Create Google Calendar event
+    // 5. Determine meeting date/time
     const meetingDateTime = extractedData.preferredDateTime
       ? new Date(extractedData.preferredDateTime)
       : new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
+
+    // 6. Create Zoom meeting
+    const zoomMeeting = await createZoomMeeting(
+      `Meeting with ${extractedData.name}`,
+      meetingDateTime.toISOString(),
+      30,
+      'America/New_York'
+    );
+
+    console.log('[WEBHOOK] Zoom meeting created:', zoomMeeting.join_url);
+
+    // 7. Create Google Calendar event
 
     const calendarEvent = await createCalendarEvent({
       summary: `Meeting with ${extractedData.name}`,
@@ -150,7 +153,7 @@ Return ONLY the JSON object, no additional text.
 
     console.log('[WEBHOOK] Calendar event created:', calendarEvent.id);
 
-    // 7. Save to Firebase
+    // 8. Save to Firebase
     const meetingData = {
       name: extractedData.name,
       email: extractedData.email,
@@ -182,7 +185,7 @@ Return ONLY the JSON object, no additional text.
       console.error('[WEBHOOK] Failed to save meeting:', saveResult.error);
     }
 
-    // 8. Send confirmation emails
+    // 9. Send confirmation emails
     const language = extractedData.language || 'en';
 
     // Send email to client
