@@ -769,7 +769,7 @@ export default function VoiceChatPage() {
                         ? 'Escribe un mensaje (email, nombre, etc.)...'
                         : 'Type a message (email, name, etc.)...'
                       }
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm text-gray-900"
                     />
                     <button
                       onClick={sendTextMessage}
