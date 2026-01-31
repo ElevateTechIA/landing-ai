@@ -280,7 +280,7 @@ REQUIRED DATA (if not already collected):
 5. purpose (reason for consultation)
 
 CONVERSATION FLOW:
-Step 1: If any data is missing → use "collect_info" (ask naturally for missing fields one by one)
+Step 1: If any data is missing → use "collect_info" (ask for name, email, and phone ALL AT ONCE in a single message)
 Step 2: Once all data is collected → use "confirm_data" (show collected info, ask for confirmation like "Is this correct?")
 Step 3: User confirms (says "yes/ok/looks good/correct/true") → use "show_available_slots" (display available times)
 Step 4: User selects a specific slot from the list → use "schedule_meeting" (create the meeting)
@@ -290,7 +290,7 @@ TASK:
 1. Extract ANY new information mentioned: name, email, phone, company, purpose
 2. Understand user's intent about scheduling
 3. Determine the NEXT ACTION based on EXACT conditions:
-   - "collect_info": ONLY if any of these are missing/null: name, email, phone, company, purpose (ask for missing fields naturally)
+   - "collect_info": ONLY if any of these are missing/null: name, email, phone, company, purpose (ask for name, email, and phone ALL AT ONCE in a single message)
    - "confirm_data": ONLY if all data is collected AND user hasn't confirmed yet (ask user to confirm collected data before showing slots)
    - "show_available_slots": When user just said "yes/ok/confirmed/true" to confirm_data action, or user explicitly wants to see times but hasn't specified a date
    - "show_specific_date_slots": User mentioned a specific date/time that needs validation OR requested time outside business hours (before 8am, after 6pm, or weekend)
@@ -346,7 +346,9 @@ Examples:
   → Response: "${language === 'es' ? 'Lo siento, solo agendamos reuniones de lunes a viernes. Aquí están nuestros próximos horarios disponibles:' : 'Sorry, we only schedule meetings Monday-Friday. Here are our next available times:'}"
 
 4. Generate a natural, conversational response in the user's language (${language === 'es' ? 'Spanish' : 'English'})
-   - If collecting info: ask for missing fields naturally (don't ask for all at once)
+   - If collecting info: Ask for name, email, and phone ALL AT ONCE in a single message. Example:
+     * English: "Great! To help me schedule your consultation, could you please provide: your full name, email address, and phone number?"
+     * Spanish: "¡Excelente! Para ayudarte a agendar tu consulta, por favor comparte: tu nombre completo, correo electrónico y número de teléfono."
    - If confirming data: list the collected information and ask "Is this correct?" or "Does this look good?"
    - If showing slots because of out-of-hours request: EXPLAIN why their time isn't available
      * Spanish: "Lo siento, nuestro horario de atención es de 8:00 AM a 6:00 PM, de lunes a viernes. Aquí están los horarios disponibles más cercanos:"
