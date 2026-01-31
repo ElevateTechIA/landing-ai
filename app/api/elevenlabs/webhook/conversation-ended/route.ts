@@ -16,11 +16,29 @@ function verifyWebhookSignature(
   signature: string,
   secret: string
 ): boolean {
+  // ElevenLabs signature format: "t=<timestamp>,v0=<hash>"
+  // Extract the hash from v0=
+  const hashMatch = signature.match(/v0=([a-f0-9]+)/);
+  if (!hashMatch) {
+    console.error('[WEBHOOK] Invalid signature format:', signature);
+    return false;
+  }
+
+  const receivedHash = hashMatch[1];
+
+  // Compute expected signature
   const expectedSignature = crypto
     .createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
-  return signature === expectedSignature;
+
+  console.log('[WEBHOOK] Signature verification:', {
+    receivedHash: receivedHash.substring(0, 16) + '...',
+    expectedHash: expectedSignature.substring(0, 16) + '...',
+    match: receivedHash === expectedSignature
+  });
+
+  return receivedHash === expectedSignature;
 }
 
 export async function POST(request: NextRequest) {
