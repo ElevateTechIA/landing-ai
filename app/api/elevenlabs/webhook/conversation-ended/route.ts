@@ -4,16 +4,58 @@ import { createZoomMeeting } from '@/lib/zoom';
 import { createCalendarEvent } from '@/lib/google-calendar';
 import { saveMeetingToFirebase } from '@/lib/firebase';
 import { sendConfirmationEmail, sendNotificationEmail } from '@/lib/email';
+import crypto from 'crypto';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
+const ELEVENLABS_WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET;
+
+// Verify HMAC signature from ElevenLabs
+function verifyWebhookSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): boolean {
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  return signature === expectedSignature;
+}
 
 export async function POST(request: NextRequest) {
   try {
     console.log('[WEBHOOK] Conversation ended webhook received');
 
-    // 1. Parse webhook payload
-    const payload = await request.json();
+    // 1. Verify HMAC signature (if secret is configured)
+    if (ELEVENLABS_WEBHOOK_SECRET) {
+      const rawBody = await request.text();
+      const signature = request.headers.get('x-elevenlabs-signature') ||
+                       request.headers.get('x-signature') ||
+                       '';
+
+      if (!signature) {
+        console.error('[WEBHOOK] Missing signature header');
+        return NextResponse.json({ error: 'Unauthorized - Missing signature' }, { status: 401 });
+      }
+
+      const isValid = verifyWebhookSignature(rawBody, signature, ELEVENLABS_WEBHOOK_SECRET);
+
+      if (!isValid) {
+        console.error('[WEBHOOK] Invalid signature');
+        return NextResponse.json({ error: 'Unauthorized - Invalid signature' }, { status: 401 });
+      }
+
+      console.log('[WEBHOOK] Signature verified successfully');
+
+      // Parse JSON from raw body
+      var payload = JSON.parse(rawBody);
+    } else {
+      console.warn('[WEBHOOK] No ELEVENLABS_WEBHOOK_SECRET configured, skipping signature verification');
+      // Parse JSON normally
+      var payload = await request.json();
+    }
+
     const { conversation_id, ended_at, end_reason } = payload;
 
     console.log('[WEBHOOK] Conversation ID:', conversation_id);
