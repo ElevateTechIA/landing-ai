@@ -148,12 +148,16 @@ Return ONLY the JSON object, no additional text.
       // Fix common email format issues from voice transcription
       let fixedEmail = originalEmail
         .toLowerCase()
-        .replace(/\s+at\s+/g, '@')     // "at" -> "@"
-        .replace(/\sat\s/g, '@')        // " at " -> "@"
-        .replace(/\sdot\s/g, '.')       // " dot " -> "."
-        .replace(/\.com\./g, '.com')    // ".com." -> ".com"
-        .replace(/\.net\./g, '.net')    // ".net." -> ".net"
-        .replace(/\s+/g, '');           // Remove all spaces
+        .replace(/\s+at\s+/g, '@')         // "at" -> "@"
+        .replace(/\sat\s/g, '@')            // " at " -> "@"
+        .replace(/\.arroba\./g, '@')        // ".arroba." -> "@" (Spanish)
+        .replace(/arroba/g, '@')            // "arroba" -> "@" (Spanish)
+        .replace(/\s+arroba\s+/g, '@')     // " arroba " -> "@" (Spanish with spaces)
+        .replace(/\sdot\s/g, '.')           // " dot " -> "."
+        .replace(/\spunto\s/g, '.')         // " punto " -> "." (Spanish)
+        .replace(/\.com\./g, '.com')        // ".com." -> ".com"
+        .replace(/\.net\./g, '.net')        // ".net." -> ".net"
+        .replace(/\s+/g, '');               // Remove all spaces
 
       // If still missing @, try to detect and fix common patterns
       if (!fixedEmail.includes('@')) {
