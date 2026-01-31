@@ -117,10 +117,13 @@ Extract the following information from this conversation transcript and return i
   "phone": "phone number",
   "company": "company name if mentioned",
   "challenge": "main challenge or reason for meeting",
-  "preferredDateTime": "preferred date/time mentioned (ISO format if possible)",
+  "preferredDateTime": "preferred date/time mentioned in America/New_York timezone (ISO 8601 format like 2026-02-02T17:00:00-05:00)",
   "language": "en" or "es" (detect from conversation),
   "isComplete": true if all required info (name, email, phone) is present
 }
+
+IMPORTANT: For preferredDateTime, assume all times mentioned are in Eastern Time (America/New_York, UTC-5 or UTC-4 during DST).
+Convert to ISO 8601 format with timezone offset, e.g., "2026-02-02T17:00:00-05:00" for 5 PM Eastern.
 
 Transcript:
 ${transcript}
@@ -204,9 +207,31 @@ Return ONLY the JSON object, no additional text.
     }
 
     // 7. Determine meeting date/time
-    const meetingDateTime = extractedData.preferredDateTime
-      ? new Date(extractedData.preferredDateTime)
-      : new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
+    let meetingDateTime: Date;
+
+    if (extractedData.preferredDateTime) {
+      const dateStr = extractedData.preferredDateTime;
+
+      // Check if timezone is already included
+      if (dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+        // Has timezone, parse directly
+        meetingDateTime = new Date(dateStr);
+      } else {
+        // No timezone, treat as Eastern Time
+        // When Gemini extracts "2026-02-02T17:00:00", this means 5 PM Eastern
+        // We need to convert to UTC: 5 PM Eastern = 10 PM UTC (add 5 hours)
+        const parsedDate = new Date(dateStr); // Interprets as UTC 17:00
+        meetingDateTime = new Date(parsedDate.getTime() + 5 * 60 * 60 * 1000); // Add 5 hours to get correct UTC time
+        console.log('[WEBHOOK] Interpreted time as Eastern:', {
+          original: dateStr,
+          easternTime: dateStr,
+          utcTime: meetingDateTime.toISOString(),
+        });
+      }
+    } else {
+      // Default to tomorrow at same time
+      meetingDateTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
 
     // 8. Create Zoom meeting
     const zoomMeeting = await createZoomMeeting(
