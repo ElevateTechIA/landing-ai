@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createZoomMeeting } from '@/lib/zoom';
 import { createCalendarEvent } from '@/lib/google-calendar';
-import { saveMeetingToFirebase } from '@/lib/firebase';
+import { saveMeeting } from '@/lib/firebase';
 import { sendConfirmationEmail, sendNotificationEmail } from '@/lib/email';
 import crypto from 'crypto';
 
@@ -152,18 +152,35 @@ Return ONLY the JSON object, no additional text.
 
     // 7. Save to Firebase
     const meetingData = {
-      ...extractedData,
+      name: extractedData.name,
+      email: extractedData.email,
+      phone: extractedData.phone || '',
+      company: extractedData.company || '',
+      challenge: extractedData.challenge || '',
+      objectives: '',
+      expectations: '',
+      budget: '',
+      timeline: '',
+      scheduledTime: meetingDateTime.toISOString(),
       zoomLink: zoomMeeting.join_url,
-      zoomId: zoomMeeting.id,
-      calendarEventId: calendarEvent.id,
-      scheduledAt: meetingDateTime.toISOString(),
+      zoomId: zoomMeeting.id.toString(),
+      zoomMeetingId: zoomMeeting.id.toString(),
+      googleCalendarEventId: calendarEvent.id,
+      status: 'scheduled' as const,
+      reminderSent: false,
+      attended: false,
+      source: 'voice_chat' as const,
       conversationId: conversation_id,
-      createdAt: new Date().toISOString(),
-      source: 'voice_call_webhook',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
-    await saveMeetingToFirebase(meetingData);
-    console.log('[WEBHOOK] Meeting saved to Firebase');
+    const saveResult = await saveMeeting(meetingData);
+    if (saveResult.success) {
+      console.log('[WEBHOOK] Meeting saved to Firebase:', saveResult.id);
+    } else {
+      console.error('[WEBHOOK] Failed to save meeting:', saveResult.error);
+    }
 
     // 8. Send confirmation emails
     const language = extractedData.language || 'en';
