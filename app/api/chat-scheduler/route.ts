@@ -281,17 +281,43 @@ REQUIRED DATA (if not already collected):
 
 CONVERSATION FLOW:
 Step 1: If any data is missing → use "collect_info" (ask for name, email, and phone ALL AT ONCE in a single message)
-Step 2: Once all data is collected → use "confirm_data" (show collected info, ask for confirmation like "Is this correct?")
-Step 3: User confirms (says "yes/ok/looks good/correct/true") → use "show_available_slots" (display available times)
+Step 2: User provides data → EXTRACT all provided data and use "confirm_data" (show collected info, ask for confirmation like "Is this correct?")
+  - NEVER ask for the same data twice!
+  - If user provided name, email, phone → extract them and go to Step 3
+Step 3: Once data is confirmed by user (says "yes/ok/looks good/correct/true") → use "show_available_slots" (display available times)
 Step 4: User selects a specific slot from the list → use "schedule_meeting" (create the meeting)
 IMPORTANT: Do NOT jump from confirm_data directly to schedule_meeting. Always show available slots first.
 
 TASK:
 1. Extract ANY new information mentioned: name, email, phone, company, purpose
+   - Look for patterns like:
+     * "Nombre: X Email: Y Teléfono: Z" → name=X, email=Y, phone=Z
+     * "Name: X, Email: Y, Phone: Z" → name=X, email=Y, phone=Z
+     * "My name is John, email john@example.com, phone 1234567890" → name=John, email=john@example.com, phone=1234567890
+     * "John Doe, john@example.com, 555-1234" → name=John Doe, email=john@example.com, phone=555-1234
+   - CRITICAL EXTRACTION RULES:
+     * If you see an email address (contains @), extract it as email
+     * If you see a 10+ digit number, extract it as phone
+     * Look for "Nombre:", "Name:", or names at the start of the message
+     * Look for "Empresa:", "Company:", or company names after name/email/phone
+   - IMPORTANT: If user provides name, email, and phone in their response, extract ALL of them and move to next step
+
+   EXTRACTION EXAMPLES:
+   User says: "Nombre: Luciano Battistini Email: cesarvega.col@gmail.com Teléfono: 3053220070 Empresa: Elevate"
+   → Extract: name="Luciano Battistini", email="cesarvega.col@gmail.com", phone="3053220070", company="Elevate"
+   → Next action: "confirm_data" (all required data collected)
+
 2. Understand user's intent about scheduling
 3. Determine the NEXT ACTION based on EXACT conditions:
    - "collect_info": ONLY if any of these are missing/null: name, email, phone, company, purpose (ask for name, email, and phone ALL AT ONCE in a single message)
-   - "confirm_data": ONLY if all data is collected AND user hasn't confirmed yet (ask user to confirm collected data before showing slots)
+     * NEVER use this action if you just extracted name, email, and phone from user's last message!
+   - "confirm_data": Use this when you have name, email, phone (company and purpose are optional) AND user hasn't confirmed yet
+     * Show the collected data to user and ask "Is this correct?"
+     * Example: "Thank you! Let me confirm: Name: John, Email: john@example.com, Phone: 555-1234. Is this correct?"
+   - CRITICAL RULE: If user just provided name, email, and phone in their last message:
+     1. Extract ALL the data from their message
+     2. Move to "confirm_data" action immediately
+     3. DO NOT ask for the same information again!
    - "show_available_slots": When user just said "yes/ok/confirmed/true" to confirm_data action, or user explicitly wants to see times but hasn't specified a date
    - "show_specific_date_slots": User mentioned a specific date/time that needs validation OR requested time outside business hours (before 8am, after 6pm, or weekend)
    - "schedule_meeting": ONLY when user mentions a specific time that is WITHIN business hours (8am-6pm Mon-Fri). Examples:
