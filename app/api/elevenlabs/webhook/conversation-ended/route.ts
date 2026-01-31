@@ -17,22 +17,27 @@ function verifyWebhookSignature(
   secret: string
 ): boolean {
   // ElevenLabs signature format: "t=<timestamp>,v0=<hash>"
-  // Extract the hash from v0=
+  // Extract timestamp and hash
+  const timestampMatch = signature.match(/t=(\d+)/);
   const hashMatch = signature.match(/v0=([a-f0-9]+)/);
-  if (!hashMatch) {
+
+  if (!timestampMatch || !hashMatch) {
     console.error('[WEBHOOK] Invalid signature format:', signature);
     return false;
   }
 
+  const timestamp = timestampMatch[1];
   const receivedHash = hashMatch[1];
 
-  // Compute expected signature
+  // Compute expected signature using timestamp.payload format
+  const signedPayload = `${timestamp}.${payload}`;
   const expectedSignature = crypto
     .createHmac('sha256', secret)
-    .update(payload)
+    .update(signedPayload)
     .digest('hex');
 
   console.log('[WEBHOOK] Signature verification:', {
+    timestamp,
     receivedHash: receivedHash.substring(0, 16) + '...',
     expectedHash: expectedSignature.substring(0, 16) + '...',
     match: receivedHash === expectedSignature
