@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createZoomMeeting } from '@/lib/zoom';
 import { createCalendarEvent } from '@/lib/google-calendar';
 import { saveMeeting } from '@/lib/firebase';
-import { sendConfirmationEmail, sendNotificationEmail } from '@/lib/email';
+import { sendMeetingConfirmation, sendHostNotification } from '@/lib/email';
 import crypto from 'crypto';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
@@ -185,21 +185,33 @@ Return ONLY the JSON object, no additional text.
     // 8. Send confirmation emails
     const language = extractedData.language || 'en';
 
-    await sendConfirmationEmail({
+    // Send email to client
+    await sendMeetingConfirmation({
       to: extractedData.email,
       name: extractedData.name,
+      company: extractedData.company || '',
+      challenge: extractedData.challenge || '',
+      objectives: '',
+      budget: '',
+      timeline: '',
+      scheduledTime: meetingDateTime.toISOString(),
       zoomLink: zoomMeeting.join_url,
-      meetingTime: meetingDateTime.toISOString(),
       language,
+      phone: extractedData.phone || '',
     });
 
-    await sendNotificationEmail({
-      to: 'cesar@yourdomain.com', // Host email
-      clientName: extractedData.name,
-      clientEmail: extractedData.email,
-      challenge: extractedData.challenge || 'Not specified',
+    // Send notification to host
+    await sendHostNotification({
+      name: extractedData.name,
+      email: extractedData.email,
+      phone: extractedData.phone || '',
+      company: extractedData.company || '',
+      challenge: extractedData.challenge || '',
+      objectives: '',
+      budget: '',
+      timeline: '',
+      scheduledTime: meetingDateTime.toISOString(),
       zoomLink: zoomMeeting.join_url,
-      meetingTime: meetingDateTime.toISOString(),
       language,
     });
 
