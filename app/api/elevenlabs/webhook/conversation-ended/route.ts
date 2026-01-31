@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     // 1. Verify HMAC signature (if secret is configured)
     if (ELEVENLABS_WEBHOOK_SECRET) {
       const rawBody = await request.text();
-      const signature = request.headers.get('x-elevenlabs-signature') ||
+      const signature = request.headers.get('elevenlabs-signature') ||
+                       request.headers.get('x-elevenlabs-signature') ||
                        request.headers.get('x-signature') ||
                        '';
 
@@ -56,35 +57,31 @@ export async function POST(request: NextRequest) {
       var payload = await request.json();
     }
 
-    // Debug: Log the entire payload structure to see what ElevenLabs is actually sending
-    console.log('[WEBHOOK] Full payload keys:', Object.keys(payload));
-    console.log('[WEBHOOK] Full payload:', JSON.stringify(payload, null, 2));
-
-    const { conversation_id, ended_at, end_reason } = payload;
-
-    console.log('[WEBHOOK] Conversation ID:', conversation_id);
-    console.log('[WEBHOOK] End reason:', end_reason);
-
-    // 2. Fetch conversation transcript from ElevenLabs
-    const transcriptResponse = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversations/${conversation_id}`,
-      {
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-        },
-      }
-    );
-
-    if (!transcriptResponse.ok) {
-      throw new Error(`Failed to fetch transcript: ${transcriptResponse.statusText}`);
+    // 2. Extract data from payload (ElevenLabs sends data in payload.data)
+    const data = payload.data;
+    if (!data) {
+      console.error('[WEBHOOK] Missing data object in payload');
+      return NextResponse.json({ error: 'Invalid payload structure' }, { status: 400 });
     }
 
-    const conversationData = await transcriptResponse.json();
-    const transcript = conversationData.transcript || '';
+    const conversation_id = data.conversation_id;
+    const transcriptArray = data.transcript || [];
+
+    console.log('[WEBHOOK] Conversation ID:', conversation_id);
+    console.log('[WEBHOOK] Transcript messages:', transcriptArray.length);
+
+    // 3. Convert transcript array to text format
+    const transcript = transcriptArray
+      .map((msg: any) => {
+        const role = msg.role === 'agent' ? 'Agent' : 'User';
+        const message = msg.message || '';
+        return `${role}: ${message}`;
+      })
+      .join('\n');
 
     console.log('[WEBHOOK] Transcript length:', transcript.length);
 
-    // 3. Extract information using Gemini AI
+    // 4. Extract information using Gemini AI
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
@@ -121,7 +118,7 @@ Return ONLY the JSON object, no additional text.
     const extractedData = JSON.parse(jsonMatch[0]);
     console.log('[WEBHOOK] Extracted data:', extractedData);
 
-    // 4. Validate required data
+    // 5. Validate required data
     if (!extractedData.isComplete || !extractedData.email || !extractedData.name) {
       console.log('[WEBHOOK] Incomplete data, skipping appointment creation');
       return NextResponse.json({
@@ -130,12 +127,12 @@ Return ONLY the JSON object, no additional text.
       });
     }
 
-    // 5. Determine meeting date/time
+    // 6. Determine meeting date/time
     const meetingDateTime = extractedData.preferredDateTime
       ? new Date(extractedData.preferredDateTime)
       : new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
 
-    // 6. Create Zoom meeting
+    // 7. Create Zoom meeting
     const zoomMeeting = await createZoomMeeting(
       `Meeting with ${extractedData.name}`,
       meetingDateTime.toISOString(),
@@ -145,7 +142,7 @@ Return ONLY the JSON object, no additional text.
 
     console.log('[WEBHOOK] Zoom meeting created:', zoomMeeting.join_url);
 
-    // 7. Create Google Calendar event
+    // 8. Create Google Calendar event
 
     const calendarEvent = await createCalendarEvent({
       summary: `Meeting with ${extractedData.name}`,
@@ -163,7 +160,7 @@ Return ONLY the JSON object, no additional text.
 
     console.log('[WEBHOOK] Calendar event created:', calendarEvent.id);
 
-    // 8. Save to Firebase
+    // 9. Save to Firebase
     const meetingData = {
       name: extractedData.name,
       email: extractedData.email,
@@ -195,7 +192,7 @@ Return ONLY the JSON object, no additional text.
       console.error('[WEBHOOK] Failed to save meeting:', saveResult.error);
     }
 
-    // 9. Send confirmation emails
+    // 10. Send confirmation emails
     const language = extractedData.language || 'en';
 
     // Send email to client
