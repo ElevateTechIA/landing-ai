@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     console.log('[WEBHOOK] Conversation ID:', conversation_id);
     console.log('[WEBHOOK] Transcript messages:', transcriptArray.length);
 
-    // 3. Convert transcript array to text format
+    // 3. Convert transcript array to text format for AI extraction
     const transcript = transcriptArray
       .map((msg: any) => {
         const role = msg.role === 'agent' ? 'Agent' : 'User';
@@ -103,6 +103,13 @@ export async function POST(request: NextRequest) {
       .join('\n');
 
     console.log('[WEBHOOK] Transcript length:', transcript.length);
+
+    // 3b. Convert transcript to ChatMessage format for email bubbles
+    const chatMessages = transcriptArray.map((msg: any) => ({
+      role: msg.role === 'agent' ? 'assistant' : 'user',
+      content: msg.message || '',
+      timestamp: msg.timestamp || new Date().toISOString()
+    }));
 
     // 4. Extract information using Gemini AI
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -296,7 +303,7 @@ Return ONLY the JSON object, no additional text.
     // 11. Send confirmation emails
     const language = extractedData.language || 'en';
 
-    // Send email to client
+    // Send email to client with chat transcript
     await sendMeetingConfirmation({
       to: extractedData.email,
       name: extractedData.name,
@@ -309,9 +316,10 @@ Return ONLY the JSON object, no additional text.
       zoomLink: zoomMeeting.join_url,
       language,
       phone: extractedData.phone || '',
+      messages: chatMessages, // Include chat transcript with bubbles
     });
 
-    // Send notification to host
+    // Send notification to host with chat transcript
     await sendHostNotification({
       name: extractedData.name,
       email: extractedData.email,
@@ -324,6 +332,7 @@ Return ONLY the JSON object, no additional text.
       scheduledTime: meetingDateTime.toISOString(),
       zoomLink: zoomMeeting.join_url,
       language,
+      messages: chatMessages, // Include chat transcript with bubbles
     });
 
     console.log('[WEBHOOK] Emails sent successfully');
