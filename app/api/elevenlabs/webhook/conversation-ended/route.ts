@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Extract information using Gemini AI
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const extractionPrompt = `
 Extract the following information from this conversation transcript and return it as JSON:
