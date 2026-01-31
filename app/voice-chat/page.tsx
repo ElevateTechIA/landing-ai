@@ -4,6 +4,7 @@ import { useConversation } from '@elevenlabs/react';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface Message {
   id: string;
@@ -493,16 +494,25 @@ export default function VoiceChatPage() {
   }, [isCallStarted, conversationId, messages.length, conversation.status]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 pt-20">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/"
+              className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title={language === 'es' ? 'Volver a la página principal' : 'Back to main page'}
+            >
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </Link>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">
                 {language === 'es' ? 'Agenda tu Reunión por Voz' : 'Schedule Your Meeting by Voice'}
               </h1>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600 line-clamp-2">
                 {language === 'es'
                   ? 'Habla naturalmente con nuestro asistente IA y agenda tu consulta en minutos'
                   : 'Talk naturally with our AI assistant and schedule your consultation in minutes'
