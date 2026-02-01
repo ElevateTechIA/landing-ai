@@ -291,7 +291,50 @@ Conversation ID: ${conversationId}
       console.warn('[VOICE_CHAT_PROCESS] Extracted info:', JSON.stringify(extractedInfo, null, 2));
     }
 
-    // 7. Return success response
+    // 7. SMS/WhatsApp - TEMPORALMENTE DESHABILITADO
+    // Razón: Requiere registro 10DLC en Twilio para enviar SMS en EE.UU.
+    // TODO: Reactivar cuando se complete el registro 10DLC o toll-free verificado
+    const smsSent = false;
+    console.log('[VOICE_CHAT_PROCESS] SMS disabled - 10DLC registration pending');
+    // if (extractedInfo.phone) {
+    //   try {
+    //     const { sendMeetingNotification } = await import('@/lib/twilio');
+    //     const { saveSMSRecord } = await import('@/lib/firebase');
+    //
+    //     const smsResult = await sendMeetingNotification({
+    //       to: extractedInfo.phone,
+    //       name: extractedInfo.name || 'Cliente',
+    //       scheduledTime: meetingDate.toISOString(),
+    //       zoomLink: zoomMeeting.join_url,
+    //       language: emailLanguage as 'en' | 'es'
+    //     }, 'confirmation');
+    //
+    //     await saveSMSRecord({
+    //       meetingId: firebaseMeetingId,
+    //       phone: extractedInfo.phone,
+    //       type: 'confirmation',
+    //       channel: smsResult.channel || 'sms',
+    //       status: smsResult.success ? 'sent' : 'failed',
+    //       messageSid: smsResult.messageSid,
+    //       error: smsResult.error,
+    //       errorCode: smsResult.errorCode,
+    //       language: emailLanguage as 'en' | 'es',
+    //       sentAt: new Date(),
+    //       createdAt: new Date()
+    //     });
+    //
+    //     if (smsResult.success) {
+    //       smsSent = true;
+    //       console.log('[VOICE_CHAT_PROCESS] SMS/WhatsApp confirmation sent to:', extractedInfo.phone, 'via', smsResult.channel);
+    //     } else {
+    //       console.error('[VOICE_CHAT_PROCESS] SMS/WhatsApp confirmation failed:', smsResult.error);
+    //     }
+    //   } catch (smsError) {
+    //     console.error('[VOICE_CHAT_PROCESS] Error sending SMS/WhatsApp:', smsError);
+    //   }
+    // }
+
+    // 8. Return success response
     return NextResponse.json({
       success: true,
       message: 'Conversación procesada exitosamente',
@@ -303,6 +346,7 @@ Conversation ID: ${conversationId}
         googleEventId,
         firebaseMeetingId,
         emailsSent: emailResults,
+        smsSent,
       },
     });
   } catch (error) {

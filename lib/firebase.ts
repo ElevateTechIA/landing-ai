@@ -39,6 +39,7 @@ export const collections = {
   availabilitySlots: 'availabilitySlots',
   calls: 'calls',
   callLogs: 'callLogs',
+  smsRecords: 'smsRecords',
 };
 
 // Tipos para TypeScript
@@ -145,6 +146,22 @@ export interface CallLog {
   totalDuration: number; // Total minutes
   averageDuration: number; // Average call length
   answeredRate: number; // Percentage answered
+  createdAt: Date;
+}
+
+export interface SMSRecord {
+  id?: string;
+  meetingId?: string;
+  phone: string;
+  type: 'confirmation' | 'reminder';
+  channel: 'sms' | 'whatsapp';
+  status: 'sent' | 'failed' | 'delivered' | 'undelivered';
+  messageSid?: string;
+  error?: string;
+  errorCode?: string;
+  language: 'en' | 'es';
+  sentAt: Date;
+  deliveredAt?: Date;
   createdAt: Date;
 }
 
@@ -268,5 +285,60 @@ export async function updateMeeting(
       return { success: false, error: error.message };
     }
     return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+// SMS Record helper functions
+export async function saveSMSRecord(
+  smsData: Omit<SMSRecord, 'id'>
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const docRef = await db.collection(collections.smsRecords).add({
+      ...smsData,
+      createdAt: new Date()
+    });
+    console.log('[FIREBASE] SMS record saved:', docRef.id);
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving SMS record:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+export async function updateSMSStatus(
+  smsId: string,
+  updates: Partial<SMSRecord>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.smsRecords).doc(smsId).update(updates);
+    console.log('[FIREBASE] SMS record updated:', smsId);
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating SMS record:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+export async function getSMSRecordsByMeetingId(meetingId: string): Promise<SMSRecord[]> {
+  try {
+    const snapshot = await db
+      .collection(collections.smsRecords)
+      .where('meetingId', '==', meetingId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as SMSRecord[];
+  } catch (error) {
+    console.error('[FIREBASE] Error getting SMS records:', error);
+    return [];
   }
 }

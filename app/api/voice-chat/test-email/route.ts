@@ -312,6 +312,51 @@ TEST EMAIL
       console.error('[TEST_EMAIL] Client email failed:', error);
     }
 
+    // SMS/WhatsApp - TEMPORALMENTE DESHABILITADO
+    // Razón: Requiere registro 10DLC en Twilio para enviar SMS en EE.UU.
+    // TODO: Reactivar cuando se complete el registro 10DLC o toll-free verificado
+    const smsSent = false;
+    const smsChannel: 'sms' | 'whatsapp' | undefined = undefined;
+    console.log('[TEST_EMAIL] SMS disabled - 10DLC registration pending');
+    // if (clientPhone) {
+    //   try {
+    //     const { sendMeetingNotification } = await import('@/lib/twilio');
+    //     const { saveSMSRecord } = await import('@/lib/firebase');
+    //
+    //     const smsResult = await sendMeetingNotification({
+    //       to: clientPhone,
+    //       name: clientName,
+    //       scheduledTime: meetingDate.toISOString(),
+    //       zoomLink: zoomMeeting.join_url,
+    //       language: emailLanguage as 'en' | 'es'
+    //     }, 'confirmation');
+    //
+    //     await saveSMSRecord({
+    //       meetingId: `test_${Date.now()}`,
+    //       phone: clientPhone,
+    //       type: 'confirmation',
+    //       channel: smsResult.channel || 'sms',
+    //       status: smsResult.success ? 'sent' : 'failed',
+    //       messageSid: smsResult.messageSid,
+    //       error: smsResult.error,
+    //       errorCode: smsResult.errorCode,
+    //       language: emailLanguage as 'en' | 'es',
+    //       sentAt: new Date(),
+    //       createdAt: new Date()
+    //     });
+    //
+    //     if (smsResult.success) {
+    //       smsSent = true;
+    //       smsChannel = smsResult.channel;
+    //       console.log('[TEST_EMAIL] SMS/WhatsApp sent to:', clientPhone, 'via', smsResult.channel);
+    //     } else {
+    //       console.error('[TEST_EMAIL] SMS/WhatsApp failed:', smsResult.error);
+    //     }
+    //   } catch (smsError) {
+    //     console.error('[TEST_EMAIL] Error sending SMS/WhatsApp:', smsError);
+    //   }
+    // }
+
     return NextResponse.json({
       success: true,
       message: 'Emails de prueba enviados',
@@ -322,6 +367,8 @@ TEST EMAIL
         zoomLink: zoomMeeting.join_url,
         googleEventId,
         emailsSent: emailResults,
+        smsSent,
+        smsChannel,
       },
     });
   } catch (error) {

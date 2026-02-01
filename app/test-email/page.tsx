@@ -62,10 +62,10 @@ export default function TestEmailPage() {
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🧪 Prueba de Emails
+            🧪 Prueba de Emails y SMS
           </h1>
           <p className="text-gray-600 mb-8">
-            Envía emails de prueba para verificar que todo funcione correctamente
+            Envía emails y SMS/WhatsApp de prueba para verificar que todo funcione correctamente
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -165,7 +165,7 @@ export default function TestEmailPage() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Enviando...' : '📧 Enviar Emails de Prueba'}
+              {loading ? 'Enviando...' : '📧📱 Enviar Emails y SMS de Prueba'}
             </button>
           </form>
 
@@ -186,6 +186,14 @@ export default function TestEmailPage() {
                   <ul className="list-disc list-inside text-sm text-gray-600">
                     <li>Host (elevatetechagency@gmail.com): {result.data.emailsSent.hostEmail ? '✅' : '❌'}</li>
                     <li>Cliente ({formData.clientEmail}): {result.data.emailsSent.clientEmail ? '✅' : '❌'}</li>
+                  </ul>
+                  <p className="text-sm text-gray-700 mt-3">
+                    <strong>SMS/WhatsApp enviado:</strong>
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-gray-600">
+                    <li>
+                      {formData.clientPhone}: {result.data.smsSent ? `✅ via ${result.data.smsChannel || 'sms'}` : '❌ No enviado'}
+                    </li>
                   </ul>
                   {result.data.googleEventId && (
                     <p className="text-sm text-green-700 mt-2">
@@ -209,8 +217,9 @@ export default function TestEmailPage() {
           </h2>
           <ol className="list-decimal list-inside space-y-2 text-gray-700">
             <li>Completa el formulario con los datos de prueba</li>
-            <li>Haz clic en "Enviar Emails de Prueba"</li>
+            <li>Haz clic en "Enviar Emails y SMS de Prueba"</li>
             <li>Verifica tu bandeja de entrada en ambos emails</li>
+            <li>Verifica que llegue el SMS/WhatsApp al teléfono</li>
             <li>Verifica el calendario de Google (elevatetechagency@gmail.com)</li>
             <li>Si todo funciona, el sistema está listo para usar en producción</li>
           </ol>
@@ -218,7 +227,7 @@ export default function TestEmailPage() {
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-900">
               <strong>Nota:</strong> Esta página crea Zoom meetings y eventos de Google Calendar reales.
-              Los emails se envían vía SMTP usando las credenciales configuradas en Vercel.
+              Los emails se envían vía SMTP y los SMS vía Twilio usando las credenciales configuradas.
             </p>
           </div>
         </div>

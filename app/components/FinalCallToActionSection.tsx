@@ -105,43 +105,93 @@ export default function FinalCallToActionSection() {
                 : 'Schedule a meeting with me'
               }
             </p>
-            <div className="flex flex-col gap-4 justify-center items-center">
+            <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto">
               {/* First row: CHATBOT and AI AGENT CALL */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   onClick={() => setShowChatbot(true)}
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all transform hover:scale-105"
+                  className="group flex items-center gap-4 px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl transition-all duration-300 shadow-md hover:shadow-xl"
                 >
-                  {language === 'es' ? 'CHATBOT' : 'CHATBOT'}
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-base font-semibold text-gray-900">
+                      {language === 'es' ? 'Chatbot' : 'Chatbot'}
+                    </p>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
+
                 <Link
                   href="/voice-chat"
-                  className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-xl transition-all transform hover:scale-105 text-center"
+                  className="group flex items-center gap-4 px-6 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border border-blue-200 rounded-2xl transition-all duration-300 shadow-md hover:shadow-xl"
                 >
-                  {language === 'es' ? 'LLAMADA CON AGENTE IA' : 'AI AGENT CALL'}
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-base font-semibold text-gray-900">
+                      {language === 'es' ? 'Llamada con IA' : 'AI Agent Call'}
+                    </p>
+                  </div>
+                  <svg className="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </Link>
               </div>
 
               {/* Divider text */}
-              <div className="text-gray-500 font-medium">
+              <div className="text-center text-gray-400 font-medium text-sm">
                 {language === 'es' ? 'O' : 'OR'}
               </div>
 
               {/* Second row: Call buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <a
                   href="tel:+17863056167"
-                  className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-xl transition-all transform hover:scale-105 text-center flex flex-col items-center gap-1"
+                  className="group flex items-center gap-4 px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl transition-all duration-300 shadow-md hover:shadow-xl"
                 >
-                  <span>{language === 'es' ? 'LLAMAR A MI AGENTE' : 'CALL MY AGENT'}</span>
-                  <span className="text-sm">786-305-6167</span>
+                  <div className="flex-shrink-0 w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-base font-semibold text-gray-900">
+                      {language === 'es' ? 'Llamar a mi agente' : 'Call my agent'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">786-305-6167</p>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
+
                 <button
                   onClick={() => setShowCallForm(true)}
-                  className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-8 rounded-xl transition-all transform hover:scale-105 text-center flex flex-col items-center gap-1"
+                  className="group flex items-center gap-4 px-6 py-4 bg-white hover:bg-gray-50 border border-gray-200 rounded-2xl transition-all duration-300 shadow-md hover:shadow-xl"
                 >
-                  <span>{language === 'es' ? 'MI AGENTE TE LLAMA' : 'MY AGENT CALL YOU'}</span>
-                  <span className="text-sm">786-305-6167</span>
+                  <div className="flex-shrink-0 w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-base font-semibold text-gray-900">
+                      {language === 'es' ? 'Mi agente te llama' : 'My agent calls you'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">786-305-6167</p>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </div>
             </div>

@@ -235,6 +235,47 @@ export async function scheduleMeeting(params: ScheduleMeetingParams): Promise<Sc
       messages: params.messages || []
     });
 
+    // 6. SMS/WhatsApp - TEMPORALMENTE DESHABILITADO
+    // Razón: Requiere registro 10DLC en Twilio para enviar SMS en EE.UU.
+    // TODO: Reactivar cuando se complete el registro 10DLC o toll-free verificado
+    // if (params.phone && params.phone.trim()) {
+    //   try {
+    //     const { sendMeetingNotification } = await import('./twilio');
+    //     const { saveSMSRecord } = await import('./firebase');
+    //
+    //     const smsResult = await sendMeetingNotification({
+    //       to: params.phone,
+    //       name: params.name,
+    //       scheduledTime: params.selectedSlot,
+    //       zoomLink: zoomMeeting.join_url,
+    //       language: params.language || 'es'
+    //     }, 'confirmation');
+    //
+    //     await saveSMSRecord({
+    //       meetingId: saveResult.meetingId,
+    //       phone: params.phone,
+    //       type: 'confirmation',
+    //       channel: smsResult.channel || 'sms',
+    //       status: smsResult.success ? 'sent' : 'failed',
+    //       messageSid: smsResult.messageSid,
+    //       error: smsResult.error,
+    //       errorCode: smsResult.errorCode,
+    //       language: params.language || 'es',
+    //       sentAt: new Date(),
+    //       createdAt: new Date()
+    //     });
+    //
+    //     if (smsResult.success) {
+    //       console.log('[SCHEDULE_MEETING] SMS/WhatsApp confirmation sent to:', params.phone, 'via', smsResult.channel);
+    //     } else {
+    //       console.error('[SCHEDULE_MEETING] SMS/WhatsApp confirmation failed:', smsResult.error);
+    //     }
+    //   } catch (smsError) {
+    //     console.error('[SCHEDULE_MEETING] Error sending SMS/WhatsApp:', smsError);
+    //   }
+    // }
+    console.log('[SCHEDULE_MEETING] SMS disabled - 10DLC registration pending');
+
     console.log('[SCHEDULE_MEETING] Success:', {
       zoomId: zoomMeeting.id,
       meetingId: saveResult.meetingId,

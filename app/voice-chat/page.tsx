@@ -20,6 +20,11 @@ interface ConversationHistory {
   endedAt?: Date;
 }
 
+interface Alternative {
+  datetime: string;
+  displayText: string;
+}
+
 /**
  * Formats transcript text to convert spoken numbers and dates to readable format
  * Examples:
@@ -171,6 +176,12 @@ export default function VoiceChatPage() {
   const [callDuration, setCallDuration] = useState(0); // Duration in seconds
   const [goodbyeDetected, setGoodbyeDetected] = useState(false);
   const [isAgentThinking, setIsAgentThinking] = useState(false);
+
+  // Button display state
+  const [isConfirmingData, setIsConfirmingData] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<Alternative[]>([]);
+  const [lastAgentMessageId, setLastAgentMessageId] = useState<string>('');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const goodbyeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -221,6 +232,11 @@ export default function VoiceChatPage() {
       setCallDuration(0);
       setIsAgentThinking(false);
 
+      // Clear button state
+      setIsConfirmingData(false);
+      setAvailableSlots([]);
+      setLastAgentMessageId('');
+
       // Clear goodbye timeout if exists
       if (goodbyeTimeoutRef.current) {
         clearTimeout(goodbyeTimeoutRef.current);
@@ -249,20 +265,34 @@ export default function VoiceChatPage() {
       if ('user_transcript' in message && message.user_transcript) {
         console.log('✅ Adding USER message:', message.user_transcript);
         addMessage('user', message.user_transcript);
+
+        // Clear buttons when user speaks
+        setIsConfirmingData(false);
+        setAvailableSlots([]);
       }
       // Agent response
       else if ('agent_response' in message && message.agent_response) {
         console.log('✅ Adding AGENT message:', message.agent_response);
-        addMessage('agent', message.agent_response);
+        const newMsg = addMessage('agent', message.agent_response);
+
+        // Analyze agent message for button triggers
+        analyzeAgentMessage(message.agent_response, newMsg.id);
       }
       // Alternative message structure
       else if ('message' in message && message.source === 'ai') {
         console.log('✅ Adding AGENT message (alt format):', message.message);
-        addMessage('agent', message.message);
+        const newMsg = addMessage('agent', message.message);
+
+        // Analyze agent message for button triggers
+        analyzeAgentMessage(message.message, newMsg.id);
       }
       else if ('message' in message && message.source === 'user') {
         console.log('✅ Adding USER message (alt format):', message.message);
         addMessage('user', message.message);
+
+        // Clear buttons when user speaks
+        setIsConfirmingData(false);
+        setAvailableSlots([]);
       }
       else {
         console.warn('⚠️ Message format not recognized. Skipping:', message);
@@ -279,7 +309,125 @@ export default function VoiceChatPage() {
     return GOODBYE_PHRASES.some(phrase => lowerMessage.includes(phrase));
   };
 
-  const addMessage = (role: 'user' | 'agent', text: string) => {
+  /**
+   * Detects if agent message contains confirmation request
+   * Patterns:
+   * - ES: "¿es correcto?", "¿está bien?", "¿confirmas?"
+   * - EN: "is this correct?", "does this look right?", "confirm?"
+   */
+  const detectConfirmationRequest = (message: string): boolean => {
+    const patterns = [
+      // Spanish patterns
+      /¿es correcto\??/i,
+      /¿está bien\??/i,
+      /¿todo bien\??/i,
+      /confirma(r|s)?\??/i,
+      /¿(es correcta?|están correctos?) (la información|los datos|todo)\??/i,
+
+      // English patterns
+      /is (this|that|everything) correct\??/i,
+      /does (this|that|everything) look (good|right|ok|okay)\??/i,
+      /confirm\??/i,
+      /is (this|the) information correct\??/i,
+      /correct\??$/i
+    ];
+
+    return patterns.some(pattern => pattern.test(message));
+  };
+
+  /**
+   * Detects if agent message contains time slot offerings
+   * Patterns:
+   * - ES: "horarios disponibles", "estas son las opciones", "puedes elegir"
+   * - EN: "available times", "here are the options", "you can choose"
+   */
+  const detectTimeSlotOffering = (message: string): boolean => {
+    const patterns = [
+      // Spanish patterns
+      /horarios? disponibles?/i,
+      /estas? son? las? opciones?/i,
+      /puedes? elegir/i,
+      /¿qué hora (te conviene|te funciona|prefieres)\??/i,
+      /tengo estos? (horarios?|tiempos?)/i,
+
+      // English patterns
+      /available (times?|slots?)/i,
+      /(here are|these are) (the )?(options?|times?|slots?)/i,
+      /you can (choose|select|pick)/i,
+      /which time (works|suits)/i,
+      /I have (these|the following) (times?|slots?)/i
+    ];
+
+    return patterns.some(pattern => pattern.test(message));
+  };
+
+  /**
+   * Extracts time slots from agent message
+   * Looks for patterns like:
+   * - "lunes, 3 de febrero a las 10:00 AM"
+   * - "Monday, February 3 at 10:00 AM"
+   * - "martes 4 de febrero, 2:00 PM"
+   */
+  const extractTimeSlotsFromMessage = (message: string): Alternative[] => {
+    const slots: Alternative[] = [];
+
+    // Spanish format: "lunes, 3 de febrero a las 10:00 AM"
+    const esRegex = /(lunes|martes|miércoles|jueves|viernes|sábado|domingo),?\s+\d{1,2}\s+de\s+\w+\s+(a las?|de)\s+\d{1,2}:\d{2}\s*(AM|PM|am|pm)?/gi;
+
+    // English format: "Monday, February 3 at 10:00 AM"
+    const enRegex = /(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\s+at\s+\d{1,2}:\d{2}\s*(AM|PM|am|pm)?/gi;
+
+    // Try Spanish format
+    let match;
+    while ((match = esRegex.exec(message)) !== null) {
+      slots.push({
+        displayText: match[0],
+        datetime: match[0] // Backend can parse this later
+      });
+    }
+
+    // Try English format
+    while ((match = enRegex.exec(message)) !== null) {
+      slots.push({
+        displayText: match[0],
+        datetime: match[0]
+      });
+    }
+
+    return slots;
+  };
+
+  /**
+   * Analyzes agent message to determine if buttons should be shown
+   */
+  const analyzeAgentMessage = (messageText: string, messageId: string) => {
+    setLastAgentMessageId(messageId);
+
+    // Check for confirmation request
+    if (detectConfirmationRequest(messageText)) {
+      console.log('[BUTTONS] Confirmation request detected');
+      setIsConfirmingData(true);
+      setAvailableSlots([]);
+      return;
+    }
+
+    // Check for time slot offerings
+    if (detectTimeSlotOffering(messageText)) {
+      const extractedSlots = extractTimeSlotsFromMessage(messageText);
+      if (extractedSlots.length > 0) {
+        console.log('[BUTTONS] Time slots detected:', extractedSlots);
+        setAvailableSlots(extractedSlots);
+        setIsConfirmingData(false);
+        return;
+      }
+    }
+
+    // No buttons needed
+    setIsConfirmingData(false);
+    setAvailableSlots([]);
+  };
+
+  const addMessage = (role: 'user' | 'agent', text: string): Message => {
     const newMessage: Message = {
       id: `msg_${Date.now()}_${Math.random()}`,
       role,
@@ -327,6 +475,9 @@ export default function VoiceChatPage() {
         conversation.endSession();
       }, 2000);
     }
+
+    // Return the message so caller can use its ID
+    return newMessage;
   };
 
   const processConversation = async () => {
@@ -472,6 +623,36 @@ export default function VoiceChatPage() {
 
     // Clear input
     setTextInput('');
+  };
+
+  /**
+   * Handles confirmation button clicks (Yes/Change)
+   */
+  const handleConfirmation = (confirmed: boolean) => {
+    setIsConfirmingData(false);
+
+    const response = confirmed
+      ? (language === 'es' ? 'Sí, es correcto' : 'Yes, that\'s correct')
+      : (language === 'es' ? 'Necesito cambiar algo' : 'I need to change something');
+
+    // Send to conversation
+    conversation.sendUserMessage(response);
+
+    // Add to chat display
+    addMessage('user', response);
+  };
+
+  /**
+   * Handles time slot selection
+   */
+  const handleSelectSlot = (slot: Alternative) => {
+    setAvailableSlots([]);
+
+    // Send to conversation
+    conversation.sendUserMessage(slot.displayText);
+
+    // Add to chat display
+    addMessage('user', slot.displayText);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -754,29 +935,115 @@ export default function VoiceChatPage() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[80%] ${
-                          msg.role === 'user'
-                            ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                            : 'bg-white border border-gray-200 text-gray-900'
-                        } rounded-2xl px-4 py-3 shadow-sm`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-semibold opacity-75">
-                              {msg.role === 'user'
-                                ? (language === 'es' ? 'Tú' : 'You')
-                                : 'Cesar'
-                              }
-                            </span>
-                            <span className="text-xs opacity-50">
-                              {new Date(msg.timestamp).toLocaleTimeString()}
-                            </span>
+                    {messages.map((msg, idx) => (
+                      <div key={msg.id}>
+                        <div
+                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[80%] ${
+                            msg.role === 'user'
+                              ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
+                              : 'bg-white border border-gray-200 text-gray-900'
+                          } rounded-2xl px-4 py-3 shadow-sm`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold opacity-75">
+                                {msg.role === 'user'
+                                  ? (language === 'es' ? 'Tú' : 'You')
+                                  : 'Cesar'
+                                }
+                              </span>
+                              <span className="text-xs opacity-50">
+                                {new Date(msg.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <p className="text-sm leading-relaxed">{formatTranscriptText(msg.message)}</p>
                           </div>
-                          <p className="text-sm leading-relaxed">{formatTranscriptText(msg.message)}</p>
                         </div>
+
+                        {/* Confirmation buttons */}
+                        {msg.role === 'agent' &&
+                         msg.id === lastAgentMessageId &&
+                         isConfirmingData &&
+                         isCallStarted && (
+                          <div className="flex justify-start mt-4">
+                            <div className="space-y-3 w-full max-w-[85%]">
+                              <button
+                                onClick={() => handleConfirmation(true)}
+                                className="group w-full flex items-center gap-4 px-5 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02]"
+                              >
+                                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+                                  <span className="text-2xl">✅</span>
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <p className="text-base font-semibold text-green-900">
+                                    {language === 'es' ? 'Sí, es correcto' : 'Yes, that\'s correct'}
+                                  </p>
+                                  <p className="text-xs text-green-700 mt-0.5">
+                                    {language === 'es' ? 'Confirmar información' : 'Confirm information'}
+                                  </p>
+                                </div>
+                                <svg className="w-5 h-5 text-green-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleConfirmation(false)}
+                                className="group w-full flex items-center gap-4 px-5 py-4 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl hover:from-yellow-100 hover:to-orange-100 hover:border-yellow-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02]"
+                              >
+                                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+                                  <span className="text-2xl">✏️</span>
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <p className="text-base font-semibold text-yellow-900">
+                                    {language === 'es' ? 'Necesito cambiar algo' : 'I need to change something'}
+                                  </p>
+                                  <p className="text-xs text-yellow-700 mt-0.5">
+                                    {language === 'es' ? 'Modificar información' : 'Modify information'}
+                                  </p>
+                                </div>
+                                <svg className="w-5 h-5 text-yellow-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Time slot buttons */}
+                        {msg.role === 'agent' &&
+                         msg.id === lastAgentMessageId &&
+                         availableSlots.length > 0 &&
+                         !isConfirmingData &&
+                         isCallStarted && (
+                          <div className="flex justify-start mt-4">
+                            <div className="space-y-3 w-full max-w-[85%]">
+                              {availableSlots.map((slot, slotIdx) => (
+                                <button
+                                  key={slotIdx}
+                                  onClick={() => handleSelectSlot(slot)}
+                                  className="group w-full flex items-center gap-4 px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02]"
+                                >
+                                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <p className="text-base font-semibold text-blue-900">
+                                      {slot.displayText}
+                                    </p>
+                                    <p className="text-xs text-blue-700 mt-0.5">
+                                      {language === 'es' ? 'Click para seleccionar' : 'Click to select'}
+                                    </p>
+                                  </div>
+                                  <svg className="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {/* Typing Indicator */}
