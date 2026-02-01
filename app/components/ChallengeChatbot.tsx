@@ -570,7 +570,7 @@ export default function ChallengeChatbot() {
                   ? (language === 'es' ? 'Selecciona un idioma...' : 'Select a language...')
                   : (challengeData.language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...')
               }
-              className="flex-1 bg-transparent py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:cursor-not-allowed"
+              className="flex-1 bg-transparent py-2 text-base text-gray-800 placeholder-gray-400 focus:outline-none disabled:cursor-not-allowed"
             />
             <button
               type="submit"
