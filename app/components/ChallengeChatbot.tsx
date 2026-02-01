@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { useLanguage } from '../context/LanguageContext';
 
 interface Message {
@@ -62,6 +63,7 @@ export default function ChallengeChatbot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
   // Loading messages in both languages
   const loadingMessages = {
@@ -348,87 +350,176 @@ export default function ChallengeChatbot() {
   };
 
   return (
-    <div className="flex h-[600px] bg-gray-50">
+    <div className="flex h-[600px] bg-gradient-to-b from-blue-50 via-white to-blue-50">
       {/* Chat container */}
-      <div className="flex flex-col w-full max-w-2xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className="flex flex-col w-full max-w-2xl mx-auto bg-gradient-to-b from-blue-50 via-white to-blue-50 shadow-2xl rounded-3xl overflow-hidden border border-gray-200">
+        {/* AI Assistant Avatar Section */}
+        <div className="px-5 py-4 bg-white/50">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 p-0.5">
+                <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
+                  {avatarError ? (
+                    <span className="text-3xl">🤖</span>
+                  ) : (
+                    <Image
+                      src="/images/ai-assistant-avatar.png"
+                      alt="AI Assistant"
+                      width={56}
+                      height={56}
+                      className="w-full h-full object-cover"
+                      onError={() => setAvatarError(true)}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900">AI Assistant</h4>
+              <p className="text-sm text-green-600 flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                {challengeData.language === 'es' ? 'Siempre disponible' : 'Always available'}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((msg, idx) => (
+        <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+          {/* Language Selection Screen */}
+          {isSelectingLanguage && (
+            <>
+              {/* Welcome Message */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  ¡Hola! Hello! 👋
+                </p>
+                <p className="text-gray-600 text-sm mt-2 leading-relaxed">
+                  Selecciona tu idioma para comenzar / Please select your preferred language to get started:
+                </p>
+                <p className="text-gray-400 text-xs mt-3">
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+
+              {/* Language Selection Buttons */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleSelectLanguage('en')}
+                  disabled={isLoading}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all disabled:opacity-50 ${
+                    language === 'en'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="text-xl">🇺🇸</span>
+                    <span className="font-medium text-gray-800">English</span>
+                  </span>
+                  {language === 'en' && (
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => handleSelectLanguage('es')}
+                  disabled={isLoading}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all disabled:opacity-50 ${
+                    language === 'es'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="text-xl">🇪🇸</span>
+                    <span className="font-medium text-gray-800">Español</span>
+                  </span>
+                  {language === 'es' && (
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              </div>
+
+              {/* Privacy Note */}
+              <p className="text-center text-xs text-gray-500 mt-4">
+                {language === 'es'
+                  ? 'Tu información se usa solo para agendar tu reunión.'
+                  : 'Your information is only used to schedule your meeting.'}
+              </p>
+            </>
+          )}
+
+          {/* Chat Messages (after language selected) */}
+          {!isSelectingLanguage && messages.slice(1).map((msg, idx) => (
             <div key={idx}>
               <div
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                     msg.role === 'user'
-                      ? 'bg-blue-500 text-white rounded-br-none'
-                      : 'bg-gray-100 text-gray-900 rounded-bl-none shadow'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-900 shadow-sm border border-gray-100'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   <p
-                    className={`text-xs mt-1 ${
-                      msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                    className={`text-xs mt-2 ${
+                      msg.role === 'user' ? 'text-blue-100' : 'text-gray-400'
                     }`}
                   >
                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
               </div>
-              {/* Show language selection buttons after initial message */}
-              {msg.role === 'assistant' && idx === messages.length - 1 && isSelectingLanguage && (
-                <div className="flex justify-start mt-3 ml-0">
-                  <div className="space-y-2 w-full">
-                    <button
-                      onClick={() => handleSelectLanguage('en')}
-                      disabled={isLoading}
-                      className="w-full text-left px-4 py-2 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-blue-900 font-medium"
-                    >
-                      🇺🇸 English
-                    </button>
-                    <button
-                      onClick={() => handleSelectLanguage('es')}
-                      disabled={isLoading}
-                      className="w-full text-left px-4 py-2 bg-green-50 border border-green-300 rounded-lg hover:bg-green-100 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-green-900 font-medium"
-                    >
-                      🇪🇸 Español
-                    </button>
-                  </div>
-                </div>
-              )}
+
               {/* Show confirmation buttons when confirming data */}
-              {msg.role === 'assistant' && idx === messages.length - 1 && !isSelectingLanguage && isConfirmingData && (
-                <div className="flex justify-start mt-3 ml-0">
+              {msg.role === 'assistant' && idx === messages.slice(1).length - 1 && isConfirmingData && (
+                <div className="flex justify-start mt-3">
                   <div className="space-y-2 w-full">
                     <button
                       onClick={() => handleConfirmation(true)}
                       disabled={isLoading}
-                      className="w-full text-left px-4 py-2 bg-green-50 border border-green-300 rounded-lg hover:bg-green-100 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-green-900 font-medium"
+                      className="w-full flex items-center justify-between px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl hover:bg-green-100 hover:border-green-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm text-green-800 font-medium"
                     >
-                      ✅ {challengeData.language === 'es' ? 'Sí, es correcto' : 'Yes, that\'s correct'}
+                      <span>✅ {challengeData.language === 'es' ? 'Sí, es correcto' : 'Yes, that\'s correct'}</span>
                     </button>
                     <button
                       onClick={() => handleConfirmation(false)}
                       disabled={isLoading}
-                      className="w-full text-left px-4 py-2 bg-yellow-50 border border-yellow-300 rounded-lg hover:bg-yellow-100 hover:border-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-yellow-900 font-medium"
+                      className="w-full flex items-center justify-between px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-xl hover:bg-amber-100 hover:border-amber-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm text-amber-800 font-medium"
                     >
-                      ✏️ {challengeData.language === 'es' ? 'Quiero cambiar algo' : 'I want to change something'}
+                      <span>✏️ {challengeData.language === 'es' ? 'Quiero cambiar algo' : 'I want to change something'}</span>
                     </button>
                   </div>
                 </div>
               )}
+
               {/* Show alternatives/slots right after assistant message */}
-              {msg.role === 'assistant' && idx === messages.length - 1 && !isSelectingLanguage && !isConfirmingData && alternatives.length > 0 && (
-                <div className="flex justify-start mt-3 ml-0">
+              {msg.role === 'assistant' && idx === messages.slice(1).length - 1 && !isConfirmingData && alternatives.length > 0 && (
+                <div className="flex justify-start mt-3">
                   <div className="space-y-2 w-full">
                     {alternatives.map((slot, slotIdx) => (
                       <button
                         key={slotIdx}
                         onClick={() => handleSelectSlot(slot)}
                         disabled={isLoading || isScheduling}
-                        className="w-full text-left px-4 py-2 bg-green-50 border border-green-300 rounded-lg hover:bg-green-100 hover:border-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-green-900 font-medium"
+                        className="w-full flex items-center justify-between px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl hover:bg-green-100 hover:border-green-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm text-green-800 font-medium"
                       >
-                        📅 {slot.displayText}
+                        <span>📅 {slot.displayText}</span>
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </button>
                     ))}
                   </div>
@@ -436,25 +527,26 @@ export default function ChallengeChatbot() {
               )}
             </div>
           ))}
+
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 text-gray-800 px-5 py-3 rounded-lg rounded-bl-none shadow-sm border border-blue-100">
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
                 <div className="flex items-center space-x-3">
                   <div className="flex space-x-1">
                     <div
-                      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"
                       style={{ animationDelay: '0ms' }}
                     />
                     <div
-                      className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
+                      className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"
                       style={{ animationDelay: '150ms' }}
                     />
                     <div
-                      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"
                       style={{ animationDelay: '300ms' }}
                     />
                   </div>
-                  <p className="text-sm font-medium animate-pulse">
+                  <p className="text-sm font-medium text-gray-600 animate-pulse">
                     {loadingMessages[challengeData.language][loadingMessageIndex]}
                   </p>
                 </div>
@@ -465,23 +557,27 @@ export default function ChallengeChatbot() {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-gray-200 bg-white p-4">
-          <form onSubmit={handleSubmit} className="flex gap-3">
+        <div className="bg-white border-t border-gray-100 p-4">
+          <form onSubmit={handleSubmit} className="flex gap-2 items-center bg-gray-50 rounded-xl px-4 py-2 border border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              disabled={isLoading || isScheduling}
-              placeholder={challengeData.language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 text-gray-900"
+              disabled={isLoading || isScheduling || isSelectingLanguage}
+              placeholder={
+                isSelectingLanguage
+                  ? (language === 'es' ? 'Selecciona un idioma...' : 'Select a language...')
+                  : (challengeData.language === 'es' ? 'Escribe tu mensaje...' : 'Type your message...')
+              }
+              className="flex-1 bg-transparent py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              disabled={isLoading || isScheduling || !input.trim()}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+              disabled={isLoading || isScheduling || !input.trim() || isSelectingLanguage}
+              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
             >
-              {isLoading || isScheduling ? '...' : (challengeData.language === 'es' ? 'Enviar' : 'Send')}
+              {challengeData.language === 'es' ? 'Enviar' : 'Send'}
             </button>
           </form>
         </div>

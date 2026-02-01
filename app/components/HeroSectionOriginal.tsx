@@ -5,7 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { scrollToContact, scrollToSection } from '../utils/scroll';
 
 export default function HeroSectionOriginal() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   return (
     <section className="min-h-screen bg-white px-4 sm:px-6 lg:px-8 pt-24 lg:pt-32 pb-16">
@@ -44,17 +44,13 @@ export default function HeroSectionOriginal() {
         <div className="lg:order-first mb-8 lg:mb-0">
         <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-square lg:aspect-auto">
           <Image
-            src="/images/cesarvega.png"
+            src={language === 'es' ? "/images/hero image esp.png" : "/images/hero image.png"}
             alt="Cesar Oswaldo Vega - CEO"
             width={800}
             height={800}
             className="w-full h-full rounded-2xl object-cover"
             priority
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 sm:p-8">
-            <p className="text-white text-xl sm:text-2xl lg:text-3xl font-semibold">{t('heroOriginal.virtualAssistant')}</p>
-            <p className="text-white/90 text-base sm:text-lg">{t('heroOriginal.virtualAssistantCta')}</p>
-          </div>
         </div>
         </div>
         </div>
