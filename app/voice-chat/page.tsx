@@ -170,8 +170,10 @@ export default function VoiceChatPage() {
   const [textInput, setTextInput] = useState('');
   const [callDuration, setCallDuration] = useState(0); // Duration in seconds
   const [goodbyeDetected, setGoodbyeDetected] = useState(false);
+  const [isAgentThinking, setIsAgentThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const goodbyeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use refs to maintain latest values for saving
   const messagesRef = useRef<Message[]>([]);
@@ -191,11 +193,14 @@ export default function VoiceChatPage() {
     startTimeRef.current = startTime;
   }, [startTime]);
 
-  // Cleanup goodbye timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (goodbyeTimeoutRef.current) {
         clearTimeout(goodbyeTimeoutRef.current);
+      }
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
       }
     };
   }, []);
@@ -213,11 +218,19 @@ export default function VoiceChatPage() {
       console.log('Disconnected from ElevenLabs');
       setIsCallStarted(false);
       setGoodbyeDetected(false);
+      setCallDuration(0);
+      setIsAgentThinking(false);
 
       // Clear goodbye timeout if exists
       if (goodbyeTimeoutRef.current) {
         clearTimeout(goodbyeTimeoutRef.current);
         goodbyeTimeoutRef.current = null;
+      }
+
+      // Clear thinking timeout if exists
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
+        thinkingTimeoutRef.current = null;
       }
 
       saveConversationToStorage();
@@ -279,6 +292,24 @@ export default function VoiceChatPage() {
       console.log('📊 Updated messages array:', updated.length, 'messages');
       return updated;
     });
+
+    // Show typing indicator when user speaks, hide when agent responds
+    if (role === 'user') {
+      // Clear any existing timeout
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
+      }
+      // Show typing indicator immediately
+      setIsAgentThinking(true);
+    } else if (role === 'agent') {
+      // Keep typing indicator for at least 800ms before hiding
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
+      }
+      thinkingTimeoutRef.current = setTimeout(() => {
+        setIsAgentThinking(false);
+      }, 800);
+    }
 
     // Check for goodbye in both agent and user messages
     if (detectGoodbye(text) && isCallStarted) {
@@ -466,9 +497,6 @@ export default function VoiceChatPage() {
         const durationInSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
         setCallDuration(durationInSeconds);
       }, 1000);
-    } else {
-      // Reset duration when call ends
-      setCallDuration(0);
     }
 
     return () => {
@@ -751,6 +779,30 @@ export default function VoiceChatPage() {
                         </div>
                       </div>
                     ))}
+                    {/* Typing Indicator */}
+                    {isAgentThinking && (
+                      <div className="flex justify-start">
+                        <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold opacity-75">Cesar</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0ms' }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '150ms' }}
+                            />
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '300ms' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </>
                 )}
