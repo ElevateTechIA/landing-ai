@@ -132,8 +132,11 @@ export async function POST(request: NextRequest) {
       if (isGreeting && conversation.messages.length === 1) {
         aiResponse = getWelcomeMessage(detectedLanguage);
       } else {
-        // Generate response with Gemini
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Generate response with Gemini (using same model as chat route)
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-2.0-flash-exp',
+          systemInstruction: WHATSAPP_SYSTEM_INSTRUCTION,
+        });
 
         const prompt = buildWhatsAppPrompt(
           incoming.text,
@@ -141,15 +144,7 @@ export async function POST(request: NextRequest) {
           detectedLanguage
         );
 
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          systemInstruction: WHATSAPP_SYSTEM_INSTRUCTION,
-          generationConfig: {
-            maxOutputTokens: 500, // Keep responses short for WhatsApp
-            temperature: 0.7,
-          },
-        });
-
+        const result = await model.generateContent(prompt);
         aiResponse = result.response.text();
       }
 
