@@ -166,6 +166,87 @@ export async function sendWhatsAppTemplateMessage(
 }
 
 /**
+ * Send an interactive list message via WhatsApp Cloud API
+ * Used for presenting selectable options like appointment slots
+ */
+export async function sendWhatsAppInteractiveList(
+  to: string,
+  bodyText: string,
+  buttonText: string,
+  sections: Array<{
+    title: string;
+    rows: Array<{
+      id: string;
+      title: string;
+      description?: string;
+    }>;
+  }>
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!accessToken || !phoneNumberId) {
+    console.error('[WHATSAPP] Missing credentials');
+    return { success: false, error: 'WhatsApp credentials not configured' };
+  }
+
+  const cleanPhone = to.replace(/[^\d+]/g, '');
+
+  try {
+    const response = await fetch(
+      `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'interactive',
+          interactive: {
+            type: 'list',
+            body: {
+              text: bodyText,
+            },
+            action: {
+              button: buttonText,
+              sections,
+            },
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorData = data as WhatsAppErrorResponse;
+      console.error('[WHATSAPP] Interactive List API Error:', errorData.error);
+      return {
+        success: false,
+        error: errorData.error?.message || 'Failed to send interactive list'
+      };
+    }
+
+    const successData = data as WhatsAppMessageResponse;
+    console.log('[WHATSAPP] Interactive list sent:', successData.messages?.[0]?.id);
+    return {
+      success: true,
+      messageId: successData.messages?.[0]?.id
+    };
+  } catch (error) {
+    console.error('[WHATSAPP] Error sending interactive list:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+/**
  * Mark a message as read
  */
 export async function markMessageAsRead(
@@ -293,12 +374,35 @@ export function parseIncomingMessage(
     const message = messages[0];
     const contact = contacts?.[0];
 
+    // Extract text from different message types
+    let text: string | undefined;
+    const msgType = message.type as string;
+
+    if (msgType === 'text') {
+      text = (message.text as Record<string, unknown>)?.body as string | undefined;
+    } else if (msgType === 'interactive') {
+      // User tapped an interactive list item or button
+      const interactive = message.interactive as Record<string, unknown>;
+      const interactiveType = interactive?.type as string;
+      if (interactiveType === 'list_reply') {
+        const listReply = interactive.list_reply as Record<string, unknown>;
+        // The id contains the slot datetime, title has the display text
+        text = `SLOT_SELECTED:${listReply?.id}`;
+      } else if (interactiveType === 'button_reply') {
+        const buttonReply = interactive.button_reply as Record<string, unknown>;
+        text = buttonReply?.title as string;
+      }
+    } else if (msgType === 'button') {
+      const button = message.button as Record<string, unknown>;
+      text = button?.text as string;
+    }
+
     return {
       from: message.from as string,
       messageId: message.id as string,
       timestamp: message.timestamp as string,
-      type: message.type as IncomingWhatsAppMessage['type'],
-      text: (message.text as Record<string, unknown>)?.body as string | undefined,
+      type: msgType === 'interactive' ? 'text' as const : msgType as IncomingWhatsAppMessage['type'],
+      text,
       displayName: (contact?.profile as Record<string, unknown>)?.name as string | undefined,
     };
   } catch (error) {

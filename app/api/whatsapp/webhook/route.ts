@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   sendWhatsAppCloudMessage,
+  sendWhatsAppInteractiveList,
   markMessageAsRead,
   verifyWebhookSignature,
   parseIncomingMessage,
@@ -17,7 +18,7 @@ import {
   detectLanguage,
   getWelcomeMessage,
 } from '@/app/lib/chatbot/whatsappPrompt';
-import { getAvailableSlots } from '@/lib/available-slots';
+import { getAvailableSlots, AvailableSlot } from '@/lib/available-slots';
 import { scheduleMeeting } from '@/lib/schedule-meeting';
 
 // Initialize Gemini
@@ -70,6 +71,34 @@ async function generateAIResponse(
 
   const result = await model.generateContent(prompt);
   return result.response.text();
+}
+
+/**
+ * Extract scheduling info from conversation history using AI
+ */
+async function extractSchedulingInfo(
+  conversationHistory: Array<{ role: string; content: string }>
+): Promise<{ name: string; email: string; company: string; phone: string } | null> {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const historyText = conversationHistory
+      .map(msg => `${msg.role}: ${msg.content}`)
+      .join('\n');
+
+    const result = await model.generateContent(
+      `Extract the scheduling information from this conversation. Return ONLY valid JSON with these fields: name, email, company, phone. If any field is missing, use empty string "". Do not include any other text.\n\nConversation:\n${historyText}`
+    );
+
+    const text = result.response.text().trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (error) {
+    console.error('[WHATSAPP WEBHOOK] Failed to extract scheduling info:', error);
+    return null;
+  }
 }
 
 /**
@@ -137,11 +166,16 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Check if user selected a slot from interactive list
+    const isSlotSelection = incoming.text.startsWith('SLOT_SELECTED:');
+
     // Add user message to conversation
     const userMessage: WhatsAppMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: incoming.text,
+      content: isSlotSelection
+        ? `Selected slot: ${incoming.text.replace('SLOT_SELECTED:', '')}`
+        : incoming.text,
       timestamp: new Date(),
       messageId: incoming.messageId,
     };
@@ -149,11 +183,13 @@ export async function POST(request: NextRequest) {
 
     // Generate AI response
     let aiResponse: string;
+    let sendAsInteractiveList = false;
+    let interactiveSlots: AvailableSlot[] = [];
 
     try {
       // Build conversation history for context
       const conversationHistory = conversation.messages
-        .slice(-10) // Last 10 messages for context
+        .slice(-10)
         .map(msg => ({
           role: msg.role,
           content: msg.content,
@@ -165,10 +201,67 @@ export async function POST(request: NextRequest) {
 
       if (isFirstMessage && isGreeting) {
         aiResponse = getWelcomeMessage(detectedLanguage);
+      } else if (isSlotSelection) {
+        // User selected a slot from the interactive list - book the meeting
+        const selectedSlotDatetime = incoming.text.replace('SLOT_SELECTED:', '');
+        console.log('[WHATSAPP WEBHOOK] User selected slot:', selectedSlotDatetime);
+
+        // Extract scheduling info from conversation history
+        const info = await extractSchedulingInfo(conversationHistory);
+
+        if (info && info.name && info.email) {
+          // Build chat messages for context
+          const chatMessages = conversation.messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          }));
+
+          const meetingResult = await scheduleMeeting({
+            name: info.name,
+            email: info.email,
+            phone: info.phone || incoming.from,
+            company: info.company || '',
+            challenge: 'WhatsApp inquiry',
+            objectives: 'Consultation via WhatsApp',
+            expectations: '',
+            budget: '',
+            timeline: '',
+            selectedSlot: selectedSlotDatetime,
+            timezone: 'America/New_York',
+            language: detectedLanguage,
+            messages: chatMessages,
+          });
+
+          if (meetingResult.success) {
+            console.log('[WHATSAPP WEBHOOK] Meeting booked successfully:', meetingResult.zoomLink);
+            const slotDate = new Date(selectedSlotDatetime);
+            const formattedDate = slotDate.toLocaleDateString(detectedLanguage === 'es' ? 'es-US' : 'en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZone: 'America/New_York',
+            });
+            aiResponse = detectedLanguage === 'es'
+              ? `Tu reunion ha sido agendada para ${formattedDate} (hora del Este). Recibiras un email de confirmacion con el link de Zoom en ${info.email}. Nos vemos pronto!`
+              : `Your meeting has been scheduled for ${formattedDate} (Eastern Time). You'll receive a confirmation email with the Zoom link at ${info.email}. See you soon!`;
+          } else {
+            console.error('[WHATSAPP WEBHOOK] Meeting booking failed:', meetingResult.error);
+            aiResponse = detectedLanguage === 'es'
+              ? 'Hubo un problema al agendar la reunion. Por favor intenta de nuevo o contactanos en elevateai.com.'
+              : 'There was an issue scheduling the meeting. Please try again or contact us at elevateai.com.';
+          }
+        } else {
+          aiResponse = detectedLanguage === 'es'
+            ? 'No pude encontrar tu informacion. Por favor proporcioname tu nombre, email y empresa para agendar la reunion.'
+            : "I couldn't find your information. Please provide your name, email, and company to schedule the meeting.";
+        }
       } else {
         aiResponse = await generateAIResponse(
           incoming.text,
-          conversationHistory.slice(0, -1), // Exclude current message
+          conversationHistory.slice(0, -1),
           detectedLanguage
         );
 
@@ -182,23 +275,12 @@ export async function POST(request: NextRequest) {
           });
 
           if (slotsResult.success && slotsResult.slots.length > 0) {
-            // Format slots for the AI
-            const slotsText = slotsResult.slots
-              .map((slot, i) => `${i + 1}. ${slot.dayOfWeek} ${slot.date} at ${slot.time} (${slot.datetime})`)
-              .join('\n');
-
-            // Re-generate response with actual slots
-            aiResponse = await generateAIResponse(
-              incoming.text,
-              conversationHistory.slice(0, -1),
-              detectedLanguage,
-              slotsText
-            );
-
-            // Clean up any remaining [FETCH_SLOTS] tags
+            // Remove the [FETCH_SLOTS] tag from the AI response
             aiResponse = aiResponse.replace(/\[FETCH_SLOTS\]/g, '').trim();
+            // We'll send the slots as an interactive list
+            sendAsInteractiveList = true;
+            interactiveSlots = slotsResult.slots;
           } else {
-            // No slots available - remove tag and append message
             aiResponse = aiResponse.replace(/\[FETCH_SLOTS\]/g, '').trim();
             const noSlotsMsg = detectedLanguage === 'es'
               ? '\n\nLo siento, no hay horarios disponibles en este momento. Por favor intenta mas tarde o contactanos en elevateai.com.'
@@ -207,7 +289,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Check if AI wants to book a meeting
+        // Check if AI wants to book a meeting (fallback for text-based booking)
         const bookMatch = aiResponse.match(/\[BOOK_MEETING:([\s\S]*?)\]/);
         if (bookMatch) {
           console.log('[WHATSAPP WEBHOOK] AI requested meeting booking...');
@@ -216,7 +298,6 @@ export async function POST(request: NextRequest) {
             const bookingData = JSON.parse(bookMatch[1]);
             console.log('[WHATSAPP WEBHOOK] Booking data:', bookingData);
 
-            // Build chat messages for context
             const chatMessages = conversation.messages.map(msg => ({
               role: msg.role,
               content: msg.content,
@@ -239,7 +320,6 @@ export async function POST(request: NextRequest) {
               messages: chatMessages,
             });
 
-            // Remove the booking tag from the response
             aiResponse = aiResponse.replace(/\[BOOK_MEETING:[\s\S]*?\]/, '').trim();
 
             if (meetingResult.success) {
@@ -285,7 +365,31 @@ export async function POST(request: NextRequest) {
     await saveWhatsAppConversation(conversation);
 
     // Send response via WhatsApp
-    const sendResult = await sendWhatsAppCloudMessage(incoming.from, aiResponse);
+    let sendResult;
+
+    if (sendAsInteractiveList && interactiveSlots.length > 0) {
+      // Send as interactive list with selectable slots
+      const sectionTitle = detectedLanguage === 'es' ? 'Horarios disponibles' : 'Available times';
+      const buttonText = detectedLanguage === 'es' ? 'Ver horarios' : 'View times';
+
+      sendResult = await sendWhatsAppInteractiveList(
+        incoming.from,
+        aiResponse,
+        buttonText,
+        [
+          {
+            title: sectionTitle,
+            rows: interactiveSlots.map(slot => ({
+              id: slot.datetime,
+              title: `${slot.dayOfWeek} ${slot.date}`.substring(0, 24),
+              description: slot.time,
+            })),
+          },
+        ]
+      );
+    } else {
+      sendResult = await sendWhatsAppCloudMessage(incoming.from, aiResponse);
+    }
 
     if (!sendResult.success) {
       console.error('[WHATSAPP WEBHOOK] Failed to send response:', sendResult.error);
