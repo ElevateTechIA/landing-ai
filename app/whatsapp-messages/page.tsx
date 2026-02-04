@@ -6,7 +6,7 @@ interface WhatsAppMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: string;
+  timestamp: unknown;
 }
 
 interface WhatsAppConversation {
@@ -15,7 +15,7 @@ interface WhatsAppConversation {
   displayName?: string;
   messages: WhatsAppMessage[];
   language: 'en' | 'es';
-  lastMessageAt: string;
+  lastMessageAt: unknown;
 }
 
 interface WhatsAppContact {
@@ -251,9 +251,17 @@ export default function WhatsAppMessagesPage() {
     return phone;
   };
 
-  // Format date for display
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  // Format date for display (handles Firestore Timestamp objects and strings)
+  const formatDate = (dateVal: unknown) => {
+    let date: Date;
+    if (dateVal && typeof dateVal === 'object' && '_seconds' in (dateVal as Record<string, unknown>)) {
+      date = new Date((dateVal as { _seconds: number })._seconds * 1000);
+    } else if (dateVal && typeof dateVal === 'object' && 'seconds' in (dateVal as Record<string, unknown>)) {
+      date = new Date((dateVal as { seconds: number }).seconds * 1000);
+    } else {
+      date = new Date(dateVal as string);
+    }
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -338,7 +346,7 @@ export default function WhatsAppMessagesPage() {
                               <p className="text-sm text-gray-500">{formatPhone(conv.phoneNumber)}</p>
                             </div>
                             <span className="text-xs text-gray-400">
-                              {new Date(conv.lastMessageAt).toLocaleDateString()}
+                              {formatDate(conv.lastMessageAt)}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 truncate mt-1">
@@ -489,7 +497,7 @@ export default function WhatsAppMessagesPage() {
                                 {contact.tags?.join(', ') || '-'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {new Date(contact.importedAt).toLocaleDateString()}
+                                {formatDate(contact.importedAt)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <button
