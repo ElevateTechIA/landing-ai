@@ -132,9 +132,9 @@ export async function POST(request: NextRequest) {
       if (isGreeting && conversation.messages.length === 1) {
         aiResponse = getWelcomeMessage(detectedLanguage);
       } else {
-        // Generate response with Gemini
+        // Generate response with Gemini (using gemini-2.5-flash like voice-chat)
         const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash-latest',
+          model: 'gemini-2.5-flash',
           systemInstruction: WHATSAPP_SYSTEM_INSTRUCTION,
         });
 
