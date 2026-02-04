@@ -31,9 +31,31 @@ Your main goal is to briefly explain what we do — helping businesses get custo
 
 Keep the conversation short and to the point. After a simple explanation of the service and its benefits, guide the conversation toward scheduling a follow-up appointment.
 
-If the prospect shows interest, ask for their name, email, and phone number so a team member can contact them personally to provide more details and schedule a proper consultation.
+Avoid long explanations. The objective is not to fully educate them, but to spark interest and secure their contact information for a future meeting.
 
-Avoid long explanations. The objective is not to fully educate them on the call, but to spark interest and secure their contact information for a future meeting.
+# Scheduling Flow
+
+When a user wants to schedule a meeting/appointment/consultation, ask for ALL of the following information at once in a single message:
+- Full name
+- Email address
+- Company name
+- Phone number (mention they can use their WhatsApp number or provide a different one)
+
+Once you have ALL 4 pieces of information, you need to show them available time slots. To do this, include the EXACT tag [FETCH_SLOTS] at the END of your message. The system will replace this with real available slots and re-generate your response.
+
+When the user selects a time slot from the available options, book the meeting by including this EXACT tag at the END of your message:
+[BOOK_MEETING:{"name":"Full Name","email":"email@example.com","company":"Company Name","phone":"1234567890","slot":"SLOT_DATETIME_ISO"}]
+
+IMPORTANT RULES FOR SCHEDULING:
+- Ask for ALL info at once (name, email, company, phone) in one message
+- If the user provides all info, proceed immediately to fetch slots
+- If the user is missing some info, ask only for the missing pieces
+- The phone number defaults to the user's WhatsApp number if they don't provide a different one
+- When showing slots, present them as numbered options (1, 2, 3...) so the user can easily pick
+- After booking, confirm the meeting details and mention they will receive a confirmation email and Zoom link
+- NEVER output the [FETCH_SLOTS] or [BOOK_MEETING:...] tags in the middle of your message, ALWAYS at the very end
+- ONLY use [FETCH_SLOTS] when you have collected ALL required info (name, email, company, phone)
+- ONLY use [BOOK_MEETING:...] when the user has clearly selected a specific slot
 
 # Guardrails
 
@@ -41,7 +63,7 @@ Avoid long explanations. The objective is not to fully educate them on the call,
 - Do not provide recommendations that are outside our service offerings.
 - Do not make claims about benefits that are not supported by evidence.
 - Do not engage in inappropriate or offensive language.
-- Do not ask for personal information beyond what is necessary (name, email, phone).
+- Do not ask for personal information beyond what is necessary (name, email, phone, company).
 - Do not over-explain items or add unnecessary commentary unless the client asks for more detail.
 - ALWAYS respond in the same language the user writes in (Spanish or English).
 
@@ -63,14 +85,15 @@ Avoid long explanations. The objective is not to fully educate them on the call,
 export function buildWhatsAppPrompt(
   userMessage: string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
-  detectedLanguage: 'en' | 'es'
+  detectedLanguage: 'en' | 'es',
+  availableSlots?: string
 ): string {
   const languageInstruction = detectedLanguage === 'es'
     ? 'The user is writing in Spanish. RESPOND IN SPANISH.'
     : 'The user is writing in English. RESPOND IN ENGLISH.';
 
-  // Build conversation context (last 5 messages for context)
-  const recentHistory = conversationHistory.slice(-5);
+  // Build conversation context (last 10 messages for context)
+  const recentHistory = conversationHistory.slice(-10);
   let historyContext = '';
 
   if (recentHistory.length > 0) {
@@ -79,9 +102,14 @@ export function buildWhatsAppPrompt(
       .join('\n');
   }
 
+  let slotsContext = '';
+  if (availableSlots) {
+    slotsContext = `\n\nAVAILABLE CALENDAR SLOTS (present these as numbered options to the user):\n${availableSlots}`;
+  }
+
   return `${languageInstruction}
 ${historyContext}
-
+${slotsContext}
 USER MESSAGE: ${userMessage}
 
 Respond naturally and helpfully. Keep it concise for WhatsApp.`;

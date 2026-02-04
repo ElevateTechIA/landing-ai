@@ -37,7 +37,9 @@
       "Bash(/tmp/test-webhook.sh <<'EOF'\n#!/bin/bash\n\necho \"Testing ElevenLabs webhook endpoint...\"\necho \"\"\n\ncurl -X POST https://landing-ai-alpha-five.vercel.app/api/elevenlabs/webhook/conversation-ended \\\\\n  -H \"Content-Type: application/json\" \\\\\n  -d '{\n    \"conversation_id\": \"test_conv_123\",\n    \"ended_at\": \"2026-01-31T14:30:00Z\",\n    \"end_reason\": \"user_ended\"\n  }' \\\\\n  -w \"\\\\n\\\\nHTTP Status: %{http_code}\\\\n\" \\\\\n  -v 2>&1\n\necho \"\"\necho \"If you see '[WEBHOOK] Conversation ended webhook received' in the response,\"\necho \"the endpoint is working correctly.\"\nEOF)",
       "Bash(__NEW_LINE_bb89a45aef0fef8a__ chmod +x /tmp/test-webhook.sh)",
       "Bash(/tmp/test-webhook.sh)",
-      "WebFetch(domain:developers.facebook.com)"
+      "WebFetch(domain:developers.facebook.com)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }

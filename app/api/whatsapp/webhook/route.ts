@@ -17,6 +17,8 @@ import {
   detectLanguage,
   getWelcomeMessage,
 } from '@/app/lib/chatbot/whatsappPrompt';
+import { getAvailableSlots } from '@/lib/available-slots';
+import { scheduleMeeting } from '@/lib/schedule-meeting';
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -43,6 +45,31 @@ export async function GET(request: NextRequest) {
 
   console.error('[WHATSAPP WEBHOOK] Verification failed');
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
+}
+
+/**
+ * Generate AI response using Gemini
+ */
+async function generateAIResponse(
+  userMessage: string,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  detectedLanguage: 'en' | 'es',
+  availableSlots?: string
+): Promise<string> {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction: WHATSAPP_SYSTEM_INSTRUCTION,
+  });
+
+  const prompt = buildWhatsAppPrompt(
+    userMessage,
+    conversationHistory,
+    detectedLanguage,
+    availableSlots
+  );
+
+  const result = await model.generateContent(prompt);
+  return result.response.text();
 }
 
 /**
@@ -139,20 +166,100 @@ export async function POST(request: NextRequest) {
       if (isFirstMessage && isGreeting) {
         aiResponse = getWelcomeMessage(detectedLanguage);
       } else {
-        // Generate response with Gemini (using gemini-2.5-flash like voice-chat)
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-2.5-flash',
-          systemInstruction: WHATSAPP_SYSTEM_INSTRUCTION,
-        });
-
-        const prompt = buildWhatsAppPrompt(
+        aiResponse = await generateAIResponse(
           incoming.text,
           conversationHistory.slice(0, -1), // Exclude current message
           detectedLanguage
         );
 
-        const result = await model.generateContent(prompt);
-        aiResponse = result.response.text();
+        // Check if AI wants to fetch available slots
+        if (aiResponse.includes('[FETCH_SLOTS]')) {
+          console.log('[WHATSAPP WEBHOOK] AI requested available slots, fetching...');
+
+          const slotsResult = await getAvailableSlots({
+            count: 5,
+            language: detectedLanguage,
+          });
+
+          if (slotsResult.success && slotsResult.slots.length > 0) {
+            // Format slots for the AI
+            const slotsText = slotsResult.slots
+              .map((slot, i) => `${i + 1}. ${slot.dayOfWeek} ${slot.date} at ${slot.time} (${slot.datetime})`)
+              .join('\n');
+
+            // Re-generate response with actual slots
+            aiResponse = await generateAIResponse(
+              incoming.text,
+              conversationHistory.slice(0, -1),
+              detectedLanguage,
+              slotsText
+            );
+
+            // Clean up any remaining [FETCH_SLOTS] tags
+            aiResponse = aiResponse.replace(/\[FETCH_SLOTS\]/g, '').trim();
+          } else {
+            // No slots available - remove tag and append message
+            aiResponse = aiResponse.replace(/\[FETCH_SLOTS\]/g, '').trim();
+            const noSlotsMsg = detectedLanguage === 'es'
+              ? '\n\nLo siento, no hay horarios disponibles en este momento. Por favor intenta mas tarde o contactanos en elevateai.com.'
+              : '\n\nSorry, there are no available slots at the moment. Please try again later or contact us at elevateai.com.';
+            aiResponse += noSlotsMsg;
+          }
+        }
+
+        // Check if AI wants to book a meeting
+        const bookMatch = aiResponse.match(/\[BOOK_MEETING:([\s\S]*?)\]/);
+        if (bookMatch) {
+          console.log('[WHATSAPP WEBHOOK] AI requested meeting booking...');
+
+          try {
+            const bookingData = JSON.parse(bookMatch[1]);
+            console.log('[WHATSAPP WEBHOOK] Booking data:', bookingData);
+
+            // Build chat messages for context
+            const chatMessages = conversation.messages.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp,
+            }));
+
+            const meetingResult = await scheduleMeeting({
+              name: bookingData.name,
+              email: bookingData.email,
+              phone: bookingData.phone || incoming.from,
+              company: bookingData.company || '',
+              challenge: 'WhatsApp inquiry',
+              objectives: 'Consultation via WhatsApp',
+              expectations: '',
+              budget: '',
+              timeline: '',
+              selectedSlot: bookingData.slot,
+              timezone: 'America/New_York',
+              language: detectedLanguage,
+              messages: chatMessages,
+            });
+
+            // Remove the booking tag from the response
+            aiResponse = aiResponse.replace(/\[BOOK_MEETING:[\s\S]*?\]/, '').trim();
+
+            if (meetingResult.success) {
+              console.log('[WHATSAPP WEBHOOK] Meeting booked successfully:', meetingResult.zoomLink);
+              const confirmMsg = detectedLanguage === 'es'
+                ? `\n\nTu reunion ha sido agendada exitosamente! Recibiras un email de confirmacion con el link de Zoom en ${bookingData.email}.`
+                : `\n\nYour meeting has been scheduled successfully! You'll receive a confirmation email with the Zoom link at ${bookingData.email}.`;
+              aiResponse += confirmMsg;
+            } else {
+              console.error('[WHATSAPP WEBHOOK] Meeting booking failed:', meetingResult.error);
+              const errorMsg = detectedLanguage === 'es'
+                ? '\n\nHubo un problema al agendar la reunion. Por favor intenta de nuevo o contactanos en elevateai.com.'
+                : '\n\nThere was an issue scheduling the meeting. Please try again or contact us at elevateai.com.';
+              aiResponse += errorMsg;
+            }
+          } catch (parseError) {
+            console.error('[WHATSAPP WEBHOOK] Failed to parse booking data:', parseError);
+            aiResponse = aiResponse.replace(/\[BOOK_MEETING:[\s\S]*?\]/, '').trim();
+          }
+        }
       }
 
       console.log('[WHATSAPP WEBHOOK] AI Response:', aiResponse);
