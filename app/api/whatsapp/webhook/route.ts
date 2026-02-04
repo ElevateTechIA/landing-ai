@@ -82,12 +82,19 @@ export async function POST(request: NextRequest) {
 
     console.log('[WHATSAPP WEBHOOK] Processing message from:', incoming.from);
     console.log('[WHATSAPP WEBHOOK] Message:', incoming.text);
-
-    // Mark message as read
-    await markMessageAsRead(incoming.messageId);
+    console.log('[WHATSAPP WEBHOOK] Message ID:', incoming.messageId);
 
     // Get or create conversation
     let conversation = await getWhatsAppConversation(incoming.from);
+
+    // Check if we already processed this message (deduplication)
+    if (conversation?.messages.some(m => m.messageId === incoming.messageId)) {
+      console.log('[WHATSAPP WEBHOOK] Message already processed, skipping');
+      return NextResponse.json({ status: 'ok' });
+    }
+
+    // Mark message as read
+    await markMessageAsRead(incoming.messageId);
     const detectedLanguage = detectLanguage(incoming.text);
 
     if (!conversation) {
@@ -125,11 +132,11 @@ export async function POST(request: NextRequest) {
           content: msg.content,
         }));
 
-      // Check if this is a greeting/first message
-      const isGreeting = conversation.messages.length === 1 ||
-        /^(hi|hello|hola|buenos|buenas|hey)$/i.test(incoming.text.trim());
+      // Check if this is a first message (only send welcome for truly new conversations)
+      const isFirstMessage = conversation.messages.length === 1;
+      const isGreeting = /^(hi|hello|hola|buenos|buenas|hey)$/i.test(incoming.text.trim());
 
-      if (isGreeting && conversation.messages.length === 1) {
+      if (isFirstMessage && isGreeting) {
         aiResponse = getWelcomeMessage(detectedLanguage);
       } else {
         // Generate response with Gemini (using gemini-2.5-flash like voice-chat)
