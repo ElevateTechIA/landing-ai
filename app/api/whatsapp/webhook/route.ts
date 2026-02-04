@@ -266,22 +266,25 @@ export async function POST(request: NextRequest) {
         );
 
         // Check if AI wants to fetch available slots
-        if (aiResponse.includes('[FETCH_SLOTS]')) {
-          console.log('[WHATSAPP WEBHOOK] AI requested available slots, fetching...');
+        const fetchSlotsMatch = aiResponse.match(/\[FETCH_SLOTS(?::(\d{4}-\d{2}-\d{2}))?\]/);
+        if (fetchSlotsMatch) {
+          const desiredDate = fetchSlotsMatch[1]; // e.g. "2026-02-10" or undefined
+          console.log('[WHATSAPP WEBHOOK] AI requested available slots, fetching...', desiredDate ? `for date: ${desiredDate}` : 'next available');
 
           const slotsResult = await getAvailableSlots({
             count: 5,
             language: detectedLanguage,
+            desiredDate,
           });
 
           if (slotsResult.success && slotsResult.slots.length > 0) {
             // Remove the [FETCH_SLOTS] tag from the AI response
-            aiResponse = aiResponse.replace(/\[FETCH_SLOTS\]/g, '').trim();
+            aiResponse = aiResponse.replace(/\[FETCH_SLOTS(?::\d{4}-\d{2}-\d{2})?\]/g, '').trim();
             // We'll send the slots as an interactive list
             sendAsInteractiveList = true;
             interactiveSlots = slotsResult.slots;
           } else {
-            aiResponse = aiResponse.replace(/\[FETCH_SLOTS\]/g, '').trim();
+            aiResponse = aiResponse.replace(/\[FETCH_SLOTS(?::\d{4}-\d{2}-\d{2})?\]/g, '').trim();
             const noSlotsMsg = detectedLanguage === 'es'
               ? '\n\nLo siento, no hay horarios disponibles en este momento. Por favor intenta mas tarde o contactanos en elevateai.com.'
               : '\n\nSorry, there are no available slots at the moment. Please try again later or contact us at elevateai.com.';
