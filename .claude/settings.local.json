@@ -39,7 +39,11 @@
       "Bash(/tmp/test-webhook.sh)",
       "WebFetch(domain:developers.facebook.com)",
       "Bash(npx tsc:*)",
-      "Bash(npx next build:*)"
+      "Bash(npx next build:*)",
+      "WebFetch(domain:waha.devlike.pro)",
+      "WebFetch(domain:respond.io)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

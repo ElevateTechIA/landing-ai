@@ -247,6 +247,261 @@ export async function sendWhatsAppInteractiveList(
 }
 
 /**
+ * Send interactive reply buttons message via WhatsApp Cloud API
+ * Up to 3 buttons that users can tap directly
+ */
+export async function sendWhatsAppReplyButtons(
+  to: string,
+  bodyText: string,
+  buttons: Array<{
+    id: string;
+    title: string; // Max 20 characters
+  }>,
+  headerText?: string,
+  footerText?: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!accessToken || !phoneNumberId) {
+    console.error('[WHATSAPP] Missing credentials');
+    return { success: false, error: 'WhatsApp credentials not configured' };
+  }
+
+  if (buttons.length > 3) {
+    return { success: false, error: 'Maximum 3 buttons allowed' };
+  }
+
+  const cleanPhone = to.replace(/[^\d+]/g, '');
+
+  try {
+    const interactive: Record<string, unknown> = {
+      type: 'button',
+      body: {
+        text: bodyText,
+      },
+      action: {
+        buttons: buttons.map((btn) => ({
+          type: 'reply',
+          reply: {
+            id: btn.id,
+            title: btn.title.substring(0, 20), // Max 20 chars
+          },
+        })),
+      },
+    };
+
+    if (headerText) {
+      interactive.header = { type: 'text', text: headerText };
+    }
+    if (footerText) {
+      interactive.footer = { text: footerText };
+    }
+
+    const response = await fetch(
+      `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'interactive',
+          interactive,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorData = data as WhatsAppErrorResponse;
+      console.error('[WHATSAPP] Reply Buttons API Error:', errorData.error);
+      return {
+        success: false,
+        error: errorData.error?.message || 'Failed to send reply buttons'
+      };
+    }
+
+    const successData = data as WhatsAppMessageResponse;
+    console.log('[WHATSAPP] Reply buttons sent:', successData.messages?.[0]?.id);
+    return {
+      success: true,
+      messageId: successData.messages?.[0]?.id
+    };
+  } catch (error) {
+    console.error('[WHATSAPP] Error sending reply buttons:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+/**
+ * Send CTA URL button message via WhatsApp Cloud API
+ * Button that opens an external URL
+ */
+export async function sendWhatsAppCTAButton(
+  to: string,
+  bodyText: string,
+  buttonText: string,
+  url: string,
+  headerText?: string,
+  footerText?: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!accessToken || !phoneNumberId) {
+    console.error('[WHATSAPP] Missing credentials');
+    return { success: false, error: 'WhatsApp credentials not configured' };
+  }
+
+  const cleanPhone = to.replace(/[^\d+]/g, '');
+
+  try {
+    const interactive: Record<string, unknown> = {
+      type: 'cta_url',
+      body: {
+        text: bodyText,
+      },
+      action: {
+        name: 'cta_url',
+        parameters: {
+          display_text: buttonText.substring(0, 20), // Max 20 chars
+          url: url,
+        },
+      },
+    };
+
+    if (headerText) {
+      interactive.header = { type: 'text', text: headerText };
+    }
+    if (footerText) {
+      interactive.footer = { text: footerText };
+    }
+
+    const response = await fetch(
+      `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'interactive',
+          interactive,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorData = data as WhatsAppErrorResponse;
+      console.error('[WHATSAPP] CTA Button API Error:', errorData.error);
+      return {
+        success: false,
+        error: errorData.error?.message || 'Failed to send CTA button'
+      };
+    }
+
+    const successData = data as WhatsAppMessageResponse;
+    console.log('[WHATSAPP] CTA button sent:', successData.messages?.[0]?.id);
+    return {
+      success: true,
+      messageId: successData.messages?.[0]?.id
+    };
+  } catch (error) {
+    console.error('[WHATSAPP] Error sending CTA button:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+/**
+ * Send location request message via WhatsApp Cloud API
+ * Asks user to share their location
+ */
+export async function sendWhatsAppLocationRequest(
+  to: string,
+  bodyText: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!accessToken || !phoneNumberId) {
+    console.error('[WHATSAPP] Missing credentials');
+    return { success: false, error: 'WhatsApp credentials not configured' };
+  }
+
+  const cleanPhone = to.replace(/[^\d+]/g, '');
+
+  try {
+    const response = await fetch(
+      `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'interactive',
+          interactive: {
+            type: 'location_request_message',
+            body: {
+              text: bodyText,
+            },
+            action: {
+              name: 'send_location',
+            },
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorData = data as WhatsAppErrorResponse;
+      console.error('[WHATSAPP] Location Request API Error:', errorData.error);
+      return {
+        success: false,
+        error: errorData.error?.message || 'Failed to send location request'
+      };
+    }
+
+    const successData = data as WhatsAppMessageResponse;
+    console.log('[WHATSAPP] Location request sent:', successData.messages?.[0]?.id);
+    return {
+      success: true,
+      messageId: successData.messages?.[0]?.id
+    };
+  } catch (error) {
+    console.error('[WHATSAPP] Error sending location request:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Unknown error occurred' };
+  }
+}
+
+/**
  * Mark a message as read
  */
 export async function markMessageAsRead(

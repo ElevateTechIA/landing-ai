@@ -384,6 +384,21 @@ export interface BulkSendJob {
   id?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   message: string;
+  messageType?: 'text' | 'reply_buttons' | 'cta_url' | 'location_request' | 'list';
+  messagePayload?: {
+    type: string;
+    bodyText: string;
+    headerText?: string;
+    footerText?: string;
+    buttons?: Array<{ id: string; title: string }>;
+    buttonText?: string;
+    url?: string;
+    listButtonText?: string;
+    sections?: Array<{
+      title: string;
+      rows: Array<{ id: string; title: string; description?: string }>;
+    }>;
+  };
   contactIds: string[];
   totalContacts: number;
   sentCount: number;
@@ -468,12 +483,22 @@ export async function getRecentWhatsAppConversations(limit: number = 50): Promis
 }
 
 // WhatsApp Contact helper functions
+// Helper function to remove undefined values from an object
+function removeUndefinedValues<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined)
+  ) as T;
+}
+
 export async function saveContacts(
   contacts: Omit<WhatsAppContact, 'id' | 'createdAt' | 'updatedAt'>[]
 ): Promise<{ success: boolean; savedCount: number; error?: string }> {
   try {
+    console.log('[FIREBASE] saveContacts: Saving', contacts.length, 'contacts');
     const batch = db.batch();
     let savedCount = 0;
+    let newCount = 0;
+    let updateCount = 0;
 
     for (const contact of contacts) {
       // Check if contact already exists by phone number
@@ -485,27 +510,36 @@ export async function saveContacts(
 
       if (existingSnapshot.empty) {
         const docRef = db.collection(collections.whatsappContacts).doc();
-        batch.set(docRef, {
+        console.log('[FIREBASE] Creating new contact:', contact.phoneNumber, 'with docId:', docRef.id);
+        // Remove undefined values before saving to Firestore
+        const contactData = removeUndefinedValues({
           ...contact,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+        batch.set(docRef, contactData);
         savedCount++;
+        newCount++;
       } else {
         // Update existing contact
         const existingDoc = existingSnapshot.docs[0];
-        batch.update(existingDoc.ref, {
+        console.log('[FIREBASE] Updating existing contact:', contact.phoneNumber);
+        // Remove undefined values before updating
+        const updateData = removeUndefinedValues({
           name: contact.name,
           email: contact.email,
           tags: contact.tags,
           updatedAt: new Date(),
         });
+        batch.update(existingDoc.ref, updateData);
         savedCount++;
+        updateCount++;
       }
     }
 
+    console.log('[FIREBASE] Committing batch - new:', newCount, 'updated:', updateCount);
     await batch.commit();
-    console.log('[FIREBASE] Contacts saved:', savedCount);
+    console.log('[FIREBASE] Batch committed successfully. Total saved:', savedCount);
     return { success: true, savedCount };
   } catch (error) {
     console.error('[FIREBASE] Error saving contacts:', error);
@@ -518,16 +552,36 @@ export async function saveContacts(
 
 export async function getContacts(limit: number = 500): Promise<WhatsAppContact[]> {
   try {
+    // First, try simple query WITHOUT orderBy to ensure we can read the collection
+    console.log('[FIREBASE] getContacts: Fetching contacts from collection:', collections.whatsappContacts);
+
     const snapshot = await db
       .collection(collections.whatsappContacts)
-      .orderBy('createdAt', 'desc')
       .limit(limit)
       .get();
 
-    return snapshot.docs.map((doc) => ({
+    console.log('[FIREBASE] getContacts: Found', snapshot.docs.length, 'contacts');
+
+    if (snapshot.docs.length > 0) {
+      // Log first contact for debugging
+      const firstDoc = snapshot.docs[0];
+      console.log('[FIREBASE] First contact ID:', firstDoc.id);
+      console.log('[FIREBASE] First contact data:', JSON.stringify(firstDoc.data()).substring(0, 200));
+    }
+
+    const contacts = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as WhatsAppContact[];
+
+    // Sort by createdAt in memory (descending) since we're not using orderBy
+    contacts.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt as unknown as string).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt as unknown as string).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    return contacts;
   } catch (error) {
     console.error('[FIREBASE] Error getting contacts:', error);
     return [];
