@@ -6,10 +6,16 @@ import {
   markMessageAsRead,
   verifyWebhookSignature,
   parseIncomingMessage,
+  sendTypingIndicator,
+  simulateHumanDelay,
 } from '@/lib/whatsapp';
+import { getWhatsAppConfig, getDefaultWhatsAppConfig } from '@/lib/whatsapp-config';
 import {
   getWhatsAppConversation,
   saveWhatsAppConversation,
+  updateMessageStatus,
+  findMatchingAutoReply,
+  getAutomationConfig,
   WhatsAppMessage,
 } from '@/lib/firebase';
 import {
@@ -110,23 +116,78 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text();
     const body = JSON.parse(rawBody);
 
-    // Verify webhook signature (optional but recommended)
+    // Extract businessPhoneNumberId from payload metadata for config lookup
+    const entry = (body.entry as Array<Record<string, unknown>>)?.[0];
+    const changes = (entry?.changes as Array<Record<string, unknown>>)?.[0];
+    const value = changes?.value as Record<string, unknown>;
+    const metadata = value?.metadata as Record<string, unknown>;
+    const businessPhoneNumberId = (metadata?.phone_number_id as string) || '';
+
+    // Get config for this business phone number
+    const phoneConfig = getWhatsAppConfig(businessPhoneNumberId) || getDefaultWhatsAppConfig();
+    if (!phoneConfig) {
+      console.error('[WHATSAPP WEBHOOK] No WhatsApp config found for phone:', businessPhoneNumberId);
+      return NextResponse.json({ error: 'No config' }, { status: 500 });
+    }
+
+    // Verify webhook signature
     const signature = request.headers.get('x-hub-signature-256');
-    if (signature && process.env.WHATSAPP_APP_SECRET) {
-      const isValid = verifyWebhookSignature(rawBody, signature);
+    if (signature && phoneConfig.appSecret) {
+      const isValid = verifyWebhookSignature(rawBody, signature, phoneConfig.appSecret);
       if (!isValid) {
         console.error('[WHATSAPP WEBHOOK] Invalid signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     }
 
-    console.log('[WHATSAPP WEBHOOK] Received:', JSON.stringify(body, null, 2));
+    console.log('[WHATSAPP WEBHOOK] Received for phone:', businessPhoneNumberId);
+
+    // Check for message status updates (sent, delivered, read)
+    try {
+      const statuses = value?.statuses as Array<Record<string, unknown>>;
+
+      if (statuses && statuses.length > 0) {
+        for (const statusUpdate of statuses) {
+          const msgStatus = statusUpdate.status as string;
+          const msgId = statusUpdate.id as string;
+          const recipientId = statusUpdate.recipient_id as string;
+          const timestamp = statusUpdate.timestamp as string;
+
+          if (msgStatus && msgId && recipientId) {
+            console.log(`[WHATSAPP WEBHOOK] Status update: ${msgStatus} for message ${msgId} to ${recipientId}`);
+
+            // Log error details for failed messages (e.g. 131042 payment issue, 131049 marketing pause)
+            if (msgStatus === 'failed') {
+              const errors = statusUpdate.errors as Array<Record<string, unknown>> | undefined;
+              if (errors && errors.length > 0) {
+                for (const err of errors) {
+                  console.error(`[WHATSAPP WEBHOOK] DELIVERY FAILED - Code: ${err.code}, Title: ${err.title}, Message: ${err.message}, Details: ${JSON.stringify(err.error_data || {})}`);
+                }
+              } else {
+                console.error(`[WHATSAPP WEBHOOK] DELIVERY FAILED - No error details provided for message ${msgId}`);
+              }
+            }
+
+            await updateMessageStatus(
+              recipientId,
+              msgId,
+              msgStatus as 'sent' | 'delivered' | 'read' | 'failed',
+              timestamp ? new Date(parseInt(timestamp) * 1000) : undefined,
+              businessPhoneNumberId
+            );
+          }
+        }
+        return NextResponse.json({ status: 'ok' });
+      }
+    } catch (statusError) {
+      console.error('[WHATSAPP WEBHOOK] Error processing status update:', statusError);
+    }
 
     // Parse incoming message
     const incoming = parseIncomingMessage(body);
 
     if (!incoming) {
-      // Not a message event (could be status update, etc.)
+      // Not a message event
       return NextResponse.json({ status: 'ok' });
     }
 
@@ -136,12 +197,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'ok' });
     }
 
-    console.log('[WHATSAPP WEBHOOK] Processing message from:', incoming.from);
+    console.log('[WHATSAPP WEBHOOK] Processing message from:', incoming.from, 'to phone:', businessPhoneNumberId);
     console.log('[WHATSAPP WEBHOOK] Message:', incoming.text);
     console.log('[WHATSAPP WEBHOOK] Message ID:', incoming.messageId);
 
-    // Get or create conversation
-    let conversation = await getWhatsAppConversation(incoming.from);
+    // Get or create conversation (scoped to business phone number)
+    let conversation = await getWhatsAppConversation(incoming.from, businessPhoneNumberId);
 
     // Check if we already processed this message (deduplication)
     if (conversation?.messages.some(m => m.messageId === incoming.messageId)) {
@@ -150,13 +211,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark message as read
-    await markMessageAsRead(incoming.messageId);
+    await markMessageAsRead(phoneConfig, incoming.messageId);
     const detectedLanguage = detectLanguage(incoming.text);
 
     if (!conversation) {
       // New conversation
       conversation = {
         phoneNumber: incoming.from,
+        businessPhoneNumberId,
         displayName: incoming.displayName,
         messages: [],
         language: detectedLanguage,
@@ -169,6 +231,11 @@ export async function POST(request: NextRequest) {
     // Check if user selected a slot from interactive list
     const isSlotSelection = incoming.text.startsWith('SLOT_SELECTED:');
 
+    // Set conversation status to open on new messages
+    if (!conversation.status || conversation.status === 'resolved') {
+      conversation.status = 'open';
+    }
+
     // Add user message to conversation
     const userMessage: WhatsAppMessage = {
       id: crypto.randomUUID(),
@@ -180,6 +247,47 @@ export async function POST(request: NextRequest) {
       messageId: incoming.messageId,
     };
     conversation.messages.push(userMessage);
+
+    // Check auto-reply rules before AI processing
+    const isNewConversation = conversation.messages.length === 1;
+    const autoReplyMatch = await findMatchingAutoReply(incoming.text, isNewConversation);
+
+    if (autoReplyMatch && !isSlotSelection) {
+      console.log(`[WHATSAPP WEBHOOK] Auto-reply triggered: ${autoReplyMatch.name} (${autoReplyMatch.type})`);
+
+      // Personalize auto-reply message
+      const autoMessage = autoReplyMatch.message
+        .replace(/\{\{name\}\}/gi, incoming.displayName || '')
+        .replace(/\{\{phone\}\}/gi, incoming.from);
+
+      // Anti-blocking: typing indicator + small delay before auto-reply
+      const config = await getAutomationConfig();
+      const ab = config?.antiBlocking;
+      if (ab?.enableTypingIndicator !== false) {
+        await sendTypingIndicator(phoneConfig, incoming.from);
+      }
+      await simulateHumanDelay(autoMessage.length, ab?.minReplyDelaySec ?? 1, Math.min(ab?.maxReplyDelaySec ?? 3, 3));
+
+      const assistantMessage: WhatsAppMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: autoMessage,
+        timestamp: new Date(),
+      };
+      conversation.messages.push(assistantMessage);
+      conversation.lastMessageAt = new Date();
+      conversation.language = detectLanguage(incoming.text);
+
+      await saveWhatsAppConversation(conversation);
+
+      const sendResult = await sendWhatsAppCloudMessage(phoneConfig, incoming.from, autoMessage);
+      if (sendResult.success) {
+        assistantMessage.messageId = sendResult.messageId;
+        await saveWhatsAppConversation(conversation);
+      }
+
+      return NextResponse.json({ status: 'ok' });
+    }
 
     // Generate AI response
     let aiResponse: string;
@@ -367,6 +475,16 @@ export async function POST(request: NextRequest) {
     // Save conversation
     await saveWhatsAppConversation(conversation);
 
+    // Anti-blocking: typing indicator + human-like delay before sending
+    {
+      const config = await getAutomationConfig();
+      const ab = config?.antiBlocking;
+      if (ab?.enableTypingIndicator !== false) {
+        await sendTypingIndicator(phoneConfig, incoming.from);
+      }
+      await simulateHumanDelay(aiResponse.length, ab?.minReplyDelaySec ?? 1, ab?.maxReplyDelaySec ?? 5);
+    }
+
     // Send response via WhatsApp
     let sendResult;
 
@@ -376,6 +494,7 @@ export async function POST(request: NextRequest) {
       const buttonText = detectedLanguage === 'es' ? 'Ver horarios' : 'View times';
 
       sendResult = await sendWhatsAppInteractiveList(
+        phoneConfig,
         incoming.from,
         aiResponse,
         buttonText,
@@ -391,7 +510,7 @@ export async function POST(request: NextRequest) {
         ]
       );
     } else {
-      sendResult = await sendWhatsAppCloudMessage(incoming.from, aiResponse);
+      sendResult = await sendWhatsAppCloudMessage(phoneConfig, incoming.from, aiResponse);
     }
 
     if (!sendResult.success) {

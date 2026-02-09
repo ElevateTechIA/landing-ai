@@ -43,7 +43,19 @@
       "WebFetch(domain:waha.devlike.pro)",
       "WebFetch(domain:respond.io)",
       "Bash(gh api:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.rashtechnologies.com)",
+      "WebFetch(domain:botsailor.com)",
+      "WebFetch(domain:partner-docs.gupshup.io)",
+      "WebFetch(domain:www.postman.com)",
+      "WebFetch(domain:business.whatsapp.com)",
+      "WebFetch(domain:www.smsmode.com)",
+      "WebFetch(domain:help.yeastar.com)",
+      "WebFetch(domain:documenter.getpostman.com)",
+      "WebFetch(domain:yellow.ai)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:help.edrone.me)",
+      "WebFetch(domain:www.enchant.com)"
     ]
   }
 }

@@ -43,6 +43,10 @@ export const collections = {
   whatsappConversations: 'whatsappConversations',
   whatsappContacts: 'whatsappContacts',
   whatsappBulkJobs: 'whatsappBulkJobs',
+  whatsappSnippets: 'whatsappSnippets',
+  whatsappTags: 'whatsappTags',
+  whatsappAutoReplies: 'whatsappAutoReplies',
+  whatsappAutomationConfig: 'whatsappAutomationConfig',
 };
 
 // Tipos para TypeScript
@@ -355,15 +359,27 @@ export interface WhatsAppMessage {
   messageId?: string; // WhatsApp message ID
 }
 
+export type ConversationStatus = 'open' | 'resolved' | 'archived';
+
 export interface WhatsAppConversation {
   id?: string;
   phoneNumber: string; // E.164 format
+  businessPhoneNumberId?: string; // Which business number owns this conversation
   displayName?: string;
   messages: WhatsAppMessage[];
   language: 'en' | 'es';
+  status?: ConversationStatus;
   lastMessageAt: Date;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export type LifecycleStage = 'new_lead' | 'qualified' | 'proposal' | 'customer' | 'lost';
+
+export interface ContactNote {
+  id: string;
+  content: string;
+  createdAt: Date;
 }
 
 export interface WhatsAppContact {
@@ -372,6 +388,9 @@ export interface WhatsAppContact {
   name: string;
   email?: string;
   tags?: string[];
+  lifecycleStage?: LifecycleStage;
+  notes?: ContactNote[];
+  company?: string;
   importedFrom?: string; // Excel filename
   importedAt: Date;
   lastContacted?: Date;
@@ -380,11 +399,28 @@ export interface WhatsAppContact {
   updatedAt: Date;
 }
 
+export interface BroadcastAudienceFilter {
+  tags?: string[];
+  lifecycleStages?: LifecycleStage[];
+  excludeOptedOut?: boolean;
+}
+
+export interface BroadcastAnalytics {
+  deliveredCount: number;
+  readCount: number;
+  respondedCount: number;
+  deliveryRate: number;
+  readRate: number;
+  responseRate: number;
+}
+
 export interface BulkSendJob {
   id?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  name?: string;
+  businessPhoneNumberId?: string;
+  status: 'pending' | 'scheduled' | 'processing' | 'completed' | 'failed';
   message: string;
-  messageType?: 'text' | 'reply_buttons' | 'cta_url' | 'location_request' | 'list';
+  messageType?: 'text' | 'reply_buttons' | 'cta_url' | 'location_request' | 'list' | 'template';
   messagePayload?: {
     type: string;
     bodyText: string;
@@ -403,19 +439,29 @@ export interface BulkSendJob {
   totalContacts: number;
   sentCount: number;
   failedCount: number;
+  scheduledFor?: Date;
+  audienceFilter?: BroadcastAudienceFilter;
+  analytics?: BroadcastAnalytics;
   createdAt: Date;
   completedAt?: Date;
   errors: Array<{ contactId: string; phoneNumber: string; error: string }>;
 }
 
 // WhatsApp Conversation helper functions
-export async function getWhatsAppConversation(phoneNumber: string): Promise<WhatsAppConversation | null> {
+export async function getWhatsAppConversation(
+  phoneNumber: string,
+  businessPhoneNumberId?: string
+): Promise<WhatsAppConversation | null> {
   try {
-    const snapshot = await db
+    let query = db
       .collection(collections.whatsappConversations)
-      .where('phoneNumber', '==', phoneNumber)
-      .limit(1)
-      .get();
+      .where('phoneNumber', '==', phoneNumber);
+
+    if (businessPhoneNumberId) {
+      query = query.where('businessPhoneNumberId', '==', businessPhoneNumberId);
+    }
+
+    const snapshot = await query.limit(1).get();
 
     if (snapshot.empty) {
       return null;
@@ -433,13 +479,24 @@ export async function saveWhatsAppConversation(
   conversation: Omit<WhatsAppConversation, 'id'>
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    // Strip undefined values from messages to avoid Firestore errors
+    const cleanMessages = conversation.messages.map(msg => {
+      const clean: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(msg)) {
+        if (value !== undefined) {
+          clean[key] = value;
+        }
+      }
+      return clean;
+    });
+
     // Check if conversation exists
-    const existing = await getWhatsAppConversation(conversation.phoneNumber);
+    const existing = await getWhatsAppConversation(conversation.phoneNumber, conversation.businessPhoneNumberId);
 
     if (existing && existing.id) {
       // Update existing conversation
       await db.collection(collections.whatsappConversations).doc(existing.id).update({
-        messages: conversation.messages,
+        messages: cleanMessages,
         displayName: conversation.displayName,
         language: conversation.language,
         lastMessageAt: conversation.lastMessageAt,
@@ -450,6 +507,7 @@ export async function saveWhatsAppConversation(
       // Create new conversation
       const docRef = await db.collection(collections.whatsappConversations).add({
         ...conversation,
+        messages: cleanMessages,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -464,13 +522,21 @@ export async function saveWhatsAppConversation(
   }
 }
 
-export async function getRecentWhatsAppConversations(limit: number = 50): Promise<WhatsAppConversation[]> {
+export async function getRecentWhatsAppConversations(
+  limit: number = 50,
+  businessPhoneNumberId?: string
+): Promise<WhatsAppConversation[]> {
   try {
-    const snapshot = await db
+    let query = db
       .collection(collections.whatsappConversations)
       .orderBy('lastMessageAt', 'desc')
-      .limit(limit)
-      .get();
+      .limit(limit);
+
+    if (businessPhoneNumberId) {
+      query = query.where('businessPhoneNumberId', '==', businessPhoneNumberId);
+    }
+
+    const snapshot = await query.get();
 
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -659,6 +725,80 @@ export async function updateContactLastContacted(
   }
 }
 
+// Individual contact operations (Phase 2 - CRM)
+export async function getContactById(contactId: string): Promise<WhatsAppContact | null> {
+  try {
+    const doc = await db.collection(collections.whatsappContacts).doc(contactId).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() } as WhatsAppContact;
+  } catch (error) {
+    console.error('[FIREBASE] Error getting contact by ID:', error);
+    return null;
+  }
+}
+
+export async function updateContact(
+  contactId: string,
+  updates: Partial<Omit<WhatsAppContact, 'id' | 'createdAt'>>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanUpdates = removeUndefinedValues({ ...updates, updatedAt: new Date() });
+    await db.collection(collections.whatsappContacts).doc(contactId).update(cleanUpdates);
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating contact:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function addContactNote(
+  contactId: string,
+  content: string
+): Promise<{ success: boolean; note?: ContactNote; error?: string }> {
+  try {
+    const contact = await getContactById(contactId);
+    if (!contact) return { success: false, error: 'Contact not found' };
+
+    const note: ContactNote = {
+      id: crypto.randomUUID(),
+      content,
+      createdAt: new Date(),
+    };
+
+    const notes = [...(contact.notes || []), note];
+    await db.collection(collections.whatsappContacts).doc(contactId).update({
+      notes,
+      updatedAt: new Date(),
+    });
+
+    return { success: true, note };
+  } catch (error) {
+    console.error('[FIREBASE] Error adding contact note:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function deleteContactNote(
+  contactId: string,
+  noteId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const contact = await getContactById(contactId);
+    if (!contact) return { success: false, error: 'Contact not found' };
+
+    const notes = (contact.notes || []).filter(n => n.id !== noteId);
+    await db.collection(collections.whatsappContacts).doc(contactId).update({
+      notes,
+      updatedAt: new Date(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error deleting contact note:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 // Bulk Send Job helper functions
 export async function createBulkJob(
   job: Omit<BulkSendJob, 'id'>
@@ -722,5 +862,483 @@ export async function getRecentBulkJobs(limit: number = 20): Promise<BulkSendJob
   } catch (error) {
     console.error('[FIREBASE] Error getting bulk jobs:', error);
     return [];
+  }
+}
+
+// Phase 3: Scheduled broadcasts
+export async function getScheduledBroadcasts(): Promise<BulkSendJob[]> {
+  try {
+    const snapshot = await db
+      .collection(collections.whatsappBulkJobs)
+      .where('status', '==', 'scheduled')
+      .get();
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as BulkSendJob[];
+  } catch (error) {
+    console.error('[FIREBASE] Error getting scheduled broadcasts:', error);
+    return [];
+  }
+}
+
+export async function getContactsByFilter(
+  filter: BroadcastAudienceFilter,
+  limit: number = 1000
+): Promise<WhatsAppContact[]> {
+  try {
+    const allContacts = await getContacts(limit);
+    let filtered = allContacts;
+
+    if (filter.excludeOptedOut !== false) {
+      filtered = filtered.filter(c => !c.optedOut);
+    }
+
+    if (filter.tags && filter.tags.length > 0) {
+      filtered = filtered.filter(c =>
+        c.tags && c.tags.some(t => filter.tags!.includes(t))
+      );
+    }
+
+    if (filter.lifecycleStages && filter.lifecycleStages.length > 0) {
+      filtered = filtered.filter(c =>
+        c.lifecycleStage && filter.lifecycleStages!.includes(c.lifecycleStage)
+      );
+    }
+
+    return filtered;
+  } catch (error) {
+    console.error('[FIREBASE] Error filtering contacts:', error);
+    return [];
+  }
+}
+
+export async function updateBroadcastAnalytics(
+  jobId: string,
+  analytics: Partial<BroadcastAnalytics>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const job = await getBulkJob(jobId);
+    if (!job) return { success: false, error: 'Job not found' };
+
+    const currentAnalytics: BroadcastAnalytics = job.analytics || {
+      deliveredCount: 0,
+      readCount: 0,
+      respondedCount: 0,
+      deliveryRate: 0,
+      readRate: 0,
+      responseRate: 0,
+    };
+
+    const updated = { ...currentAnalytics, ...analytics };
+    // Recalculate rates
+    if (job.sentCount > 0) {
+      updated.deliveryRate = Math.round((updated.deliveredCount / job.sentCount) * 100);
+      updated.readRate = Math.round((updated.readCount / job.sentCount) * 100);
+      updated.responseRate = Math.round((updated.respondedCount / job.sentCount) * 100);
+    }
+
+    await db.collection(collections.whatsappBulkJobs).doc(jobId).update({
+      analytics: updated,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating broadcast analytics:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// =============================================
+// Snippets (Quick Replies) - Phase 1
+// =============================================
+
+export interface WhatsAppSnippet {
+  id?: string;
+  name: string;
+  content: string;
+  shortcut: string; // e.g. "greeting" -> type /greeting
+  category: string; // e.g. "general", "sales", "support"
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function getSnippets(limit: number = 100): Promise<WhatsAppSnippet[]> {
+  try {
+    const snapshot = await db
+      .collection(collections.whatsappSnippets)
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as WhatsAppSnippet[];
+  } catch (error) {
+    console.error('[FIREBASE] Error getting snippets:', error);
+    return [];
+  }
+}
+
+export async function saveSnippet(
+  snippet: Omit<WhatsAppSnippet, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const docRef = await db.collection(collections.whatsappSnippets).add({
+      ...snippet,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving snippet:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function updateSnippet(
+  snippetId: string,
+  updates: Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.whatsappSnippets).doc(snippetId).update({
+      ...updates,
+      updatedAt: new Date(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating snippet:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function deleteSnippet(
+  snippetId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.whatsappSnippets).doc(snippetId).delete();
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error deleting snippet:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// =============================================
+// Tags Management - Phase 2
+// =============================================
+
+export interface WhatsAppTag {
+  id?: string;
+  name: string;
+  color: string; // hex color e.g. "#3B82F6"
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function getTags(): Promise<WhatsAppTag[]> {
+  try {
+    const snapshot = await db
+      .collection(collections.whatsappTags)
+      .limit(100)
+      .get();
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as WhatsAppTag[];
+  } catch (error) {
+    console.error('[FIREBASE] Error getting tags:', error);
+    return [];
+  }
+}
+
+export async function saveTag(
+  tag: Omit<WhatsAppTag, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const docRef = await db.collection(collections.whatsappTags).add({
+      ...tag,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving tag:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function deleteTag(
+  tagId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.whatsappTags).doc(tagId).delete();
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error deleting tag:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// =============================================
+// Message Status Tracking - Phase 1
+// =============================================
+
+/**
+ * Update message delivery status in a conversation
+ * Called when we receive status webhooks (sent, delivered, read)
+ */
+export async function updateMessageStatus(
+  phoneNumber: string,
+  messageId: string,
+  status: 'sent' | 'delivered' | 'read' | 'failed',
+  timestamp?: Date,
+  businessPhoneNumberId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const conversation = await getWhatsAppConversation(phoneNumber, businessPhoneNumberId);
+    if (!conversation || !conversation.id) {
+      return { success: false, error: 'Conversation not found' };
+    }
+
+    // Find the message and update its status
+    const messages = conversation.messages.map((msg) => {
+      if (msg.messageId === messageId || msg.id === messageId) {
+        return {
+          ...msg,
+          status,
+          statusTimestamp: timestamp || new Date(),
+        };
+      }
+      return msg;
+    });
+
+    await db.collection(collections.whatsappConversations).doc(conversation.id).update({
+      messages,
+      updatedAt: new Date(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating message status:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// =============================================
+// Automation - Phase 4
+// =============================================
+
+export type AutoReplyType = 'welcome' | 'away' | 'keyword';
+
+export interface WhatsAppAutoReply {
+  id?: string;
+  type: AutoReplyType;
+  name: string;
+  enabled: boolean;
+  message: string;
+  keywords?: string[];
+  matchMode?: 'contains' | 'exact';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BusinessHoursSlot {
+  day: number; // 0=Sunday, 6=Saturday
+  startTime: string; // "09:00"
+  endTime: string; // "17:00"
+  enabled: boolean;
+}
+
+export interface AntiBlockingConfig {
+  enableTypingIndicator: boolean;
+  enableReadReceipts: boolean;
+  minReplyDelaySec: number;
+  maxReplyDelaySec: number;
+  bulkMessageDelaySec: number;
+  bulkBatchSize: number;
+  bulkBatchPauseSec: number;
+}
+
+export interface AutomationConfig {
+  id?: string;
+  businessHours: BusinessHoursSlot[];
+  autoCloseAfterHours: number;
+  timezone: string;
+  antiBlocking?: AntiBlockingConfig;
+  updatedAt: Date;
+}
+
+export async function getAutoReplies(): Promise<WhatsAppAutoReply[]> {
+  try {
+    const snapshot = await db.collection(collections.whatsappAutoReplies).get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as WhatsAppAutoReply[];
+  } catch (error) {
+    console.error('[FIREBASE] Error getting auto-replies:', error);
+    return [];
+  }
+}
+
+export async function saveAutoReply(
+  autoReply: Omit<WhatsAppAutoReply, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const docRef = await db.collection(collections.whatsappAutoReplies).add({
+      ...autoReply,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving auto-reply:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function updateAutoReply(
+  id: string,
+  updates: Partial<Omit<WhatsAppAutoReply, 'id' | 'createdAt'>>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanUpdates = removeUndefinedValues({ ...updates, updatedAt: new Date() });
+    await db.collection(collections.whatsappAutoReplies).doc(id).update(cleanUpdates);
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating auto-reply:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function deleteAutoReply(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.whatsappAutoReplies).doc(id).delete();
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error deleting auto-reply:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function getAutomationConfig(): Promise<AutomationConfig | null> {
+  try {
+    const snapshot = await db.collection(collections.whatsappAutomationConfig).limit(1).get();
+    if (snapshot.empty) return null;
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AutomationConfig;
+  } catch (error) {
+    console.error('[FIREBASE] Error getting automation config:', error);
+    return null;
+  }
+}
+
+export async function saveAutomationConfig(
+  config: Omit<AutomationConfig, 'id'>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const existing = await getAutomationConfig();
+    if (existing?.id) {
+      await db.collection(collections.whatsappAutomationConfig).doc(existing.id).update({
+        ...config,
+        updatedAt: new Date(),
+      });
+    } else {
+      await db.collection(collections.whatsappAutomationConfig).add({
+        ...config,
+        updatedAt: new Date(),
+      });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error saving automation config:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function updateConversationStatus(
+  conversationId: string,
+  status: ConversationStatus
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.collection(collections.whatsappConversations).doc(conversationId).update({
+      status,
+      updatedAt: new Date(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[FIREBASE] Error updating conversation status:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+export async function isWithinBusinessHours(): Promise<boolean> {
+  try {
+    const config = await getAutomationConfig();
+    if (!config) return true;
+
+    const tz = config.timezone || 'America/New_York';
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+      weekday: 'short',
+    });
+    const parts = formatter.formatToParts(now);
+    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+    const weekday = parts.find(p => p.type === 'weekday')?.value || '';
+
+    const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const currentDay = dayMap[weekday] ?? now.getDay();
+    const currentTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+    const todaySlot = config.businessHours.find(s => s.day === currentDay);
+    if (!todaySlot || !todaySlot.enabled) return false;
+
+    return currentTime >= todaySlot.startTime && currentTime <= todaySlot.endTime;
+  } catch (error) {
+    console.error('[FIREBASE] Error checking business hours:', error);
+    return true;
+  }
+}
+
+export async function findMatchingAutoReply(
+  message: string,
+  isNewConversation: boolean
+): Promise<WhatsAppAutoReply | null> {
+  try {
+    const autoReplies = await getAutoReplies();
+    const enabledReplies = autoReplies.filter(r => r.enabled);
+
+    if (isNewConversation) {
+      const welcome = enabledReplies.find(r => r.type === 'welcome');
+      if (welcome) return welcome;
+    }
+
+    const withinHours = await isWithinBusinessHours();
+    if (!withinHours) {
+      const away = enabledReplies.find(r => r.type === 'away');
+      if (away) return away;
+    }
+
+    const lowerMessage = message.toLowerCase().trim();
+    for (const rule of enabledReplies.filter(r => r.type === 'keyword')) {
+      if (!rule.keywords || rule.keywords.length === 0) continue;
+      for (const keyword of rule.keywords) {
+        const lowerKeyword = keyword.toLowerCase().trim();
+        if (rule.matchMode === 'exact') {
+          if (lowerMessage === lowerKeyword) return rule;
+        } else {
+          if (lowerMessage.includes(lowerKeyword)) return rule;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[FIREBASE] Error finding matching auto-reply:', error);
+    return null;
   }
 }

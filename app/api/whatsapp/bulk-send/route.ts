@@ -5,20 +5,26 @@ import {
   sendWhatsAppCTAButton,
   sendWhatsAppLocationRequest,
   sendWhatsAppInteractiveList,
+  sendWhatsAppTemplateMessage,
+  getRandomDelayMs,
 } from '@/lib/whatsapp';
+import { getWhatsAppConfig, getDefaultWhatsAppConfig, WhatsAppPhoneConfig } from '@/lib/whatsapp-config';
 import {
   getContacts,
   getContactsByIds,
+  getContactsByFilter,
   createBulkJob,
   updateBulkJobProgress,
   getBulkJob,
   getRecentBulkJobs,
   updateContactLastContacted,
+  getAutomationConfig,
   BulkSendJob,
+  BroadcastAudienceFilter,
 } from '@/lib/firebase';
 
 // Message types supported for bulk send
-export type BulkMessageType = 'text' | 'reply_buttons' | 'cta_url' | 'location_request' | 'list';
+export type BulkMessageType = 'text' | 'reply_buttons' | 'cta_url' | 'location_request' | 'list' | 'template';
 
 export interface BulkMessagePayload {
   type: BulkMessageType;
@@ -37,10 +43,27 @@ export interface BulkMessagePayload {
     title: string;
     rows: Array<{ id: string; title: string; description?: string }>;
   }>;
+  // For template
+  templateName?: string;
+  languageCode?: string;
+  templateComponents?: Array<{
+    type: 'header' | 'body' | 'button';
+    sub_type?: string;
+    index?: string;
+    parameters: Array<{
+      type: string;
+      text?: string;
+      image?: { link: string };
+      video?: { link: string };
+      document?: { link: string };
+    }>;
+  }>;
 }
 
-// Rate limiting: 10 messages per second (100ms between messages)
-const MESSAGE_DELAY_MS = 100;
+// Default anti-blocking settings for bulk send
+const DEFAULT_BULK_DELAY_SEC = 2;
+const DEFAULT_BULK_BATCH_SIZE = 50;
+const DEFAULT_BULK_BATCH_PAUSE_SEC = 45;
 
 /**
  * GET - Get bulk job status or list recent jobs
@@ -82,13 +105,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, messagePayload, contactIds, sendToAll, tags } = body as {
+    const { message, messagePayload, contactIds, sendToAll, tags, name, scheduledFor, audienceFilter, phoneNumberId } = body as {
       message?: string; // Legacy: plain text message
       messagePayload?: BulkMessagePayload; // New: structured message payload
       contactIds?: string[];
       sendToAll?: boolean;
       tags?: string[];
+      name?: string;
+      scheduledFor?: string; // ISO date string
+      audienceFilter?: BroadcastAudienceFilter;
+      phoneNumberId?: string;
     };
+
+    const phoneConfig = getWhatsAppConfig(phoneNumberId || '') || getDefaultWhatsAppConfig();
 
     // Support both legacy 'message' field and new 'messagePayload'
     const payload: BulkMessagePayload = messagePayload || {
@@ -96,7 +125,14 @@ export async function POST(request: NextRequest) {
       bodyText: message || '',
     };
 
-    if (!payload.bodyText || payload.bodyText.trim().length === 0) {
+    if (payload.type === 'template') {
+      if (!payload.templateName) {
+        return NextResponse.json(
+          { success: false, error: 'Template name is required' },
+          { status: 400 }
+        );
+      }
+    } else if (!payload.bodyText || payload.bodyText.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Message body is required' },
         { status: 400 }
@@ -140,7 +176,10 @@ export async function POST(request: NextRequest) {
     // Get contacts to send to
     let contacts;
 
-    if (sendToAll) {
+    if (audienceFilter && (audienceFilter.tags?.length || audienceFilter.lifecycleStages?.length)) {
+      // Use audience filter (Phase 3)
+      contacts = await getContactsByFilter(audienceFilter);
+    } else if (sendToAll) {
       // Get all contacts
       contacts = await getContacts(1000);
     } else if (contactIds && contactIds.length > 0) {
@@ -169,10 +208,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine if this is a scheduled broadcast
+    const isScheduled = scheduledFor && new Date(scheduledFor) > new Date();
+
     // Create bulk job
     const job: Omit<BulkSendJob, 'id'> = {
-      status: 'pending',
-      message: payload.bodyText.trim(),
+      status: isScheduled ? 'scheduled' : 'pending',
+      name: name?.trim() || undefined,
+      message: payload.type === 'template' ? `[Template: ${payload.templateName}]` : payload.bodyText.trim(),
       messageType: payload.type,
       messagePayload: payload,
       contactIds: contacts.map((c) => c.id!),
@@ -180,6 +223,17 @@ export async function POST(request: NextRequest) {
       sentCount: 0,
       failedCount: 0,
       createdAt: new Date(),
+      businessPhoneNumberId: phoneNumberId,
+      ...(isScheduled && { scheduledFor: new Date(scheduledFor!) }),
+      ...(audienceFilter && { audienceFilter }),
+      analytics: {
+        deliveredCount: 0,
+        readCount: 0,
+        respondedCount: 0,
+        deliveryRate: 0,
+        readRate: 0,
+        responseRate: 0,
+      },
       errors: [],
     };
 
@@ -194,8 +248,19 @@ export async function POST(request: NextRequest) {
 
     const jobId = createResult.id;
 
+    if (isScheduled) {
+      // Scheduled broadcast - don't process now
+      return NextResponse.json({
+        success: true,
+        jobId,
+        totalContacts: contacts.length,
+        scheduledFor: scheduledFor,
+        message: `Broadcast scheduled for ${new Date(scheduledFor!).toLocaleString()}`,
+      });
+    }
+
     // Start processing in background (non-blocking)
-    processBulkJob(jobId, contacts, payload).catch((error) => {
+    processBulkJob(jobId, contacts, payload, phoneConfig).catch((error) => {
       console.error('[BULK SEND] Background processing error:', error);
     });
 
@@ -218,6 +283,7 @@ export async function POST(request: NextRequest) {
  * Send a single message based on payload type
  */
 async function sendMessageByType(
+  config: WhatsAppPhoneConfig,
   phoneNumber: string,
   contactName: string,
   payload: BulkMessagePayload
@@ -227,10 +293,11 @@ async function sendMessageByType(
 
   switch (payload.type) {
     case 'text':
-      return sendWhatsAppCloudMessage(phoneNumber, personalizedBody);
+      return sendWhatsAppCloudMessage(config, phoneNumber, personalizedBody);
 
     case 'reply_buttons':
       return sendWhatsAppReplyButtons(
+        config,
         phoneNumber,
         personalizedBody,
         payload.buttons || [],
@@ -240,6 +307,7 @@ async function sendMessageByType(
 
     case 'cta_url':
       return sendWhatsAppCTAButton(
+        config,
         phoneNumber,
         personalizedBody,
         payload.buttonText || 'Click here',
@@ -249,15 +317,34 @@ async function sendMessageByType(
       );
 
     case 'location_request':
-      return sendWhatsAppLocationRequest(phoneNumber, personalizedBody);
+      return sendWhatsAppLocationRequest(config, phoneNumber, personalizedBody);
 
     case 'list':
       return sendWhatsAppInteractiveList(
+        config,
         phoneNumber,
         personalizedBody,
         payload.listButtonText || 'View options',
         payload.sections || []
       );
+
+    case 'template': {
+      // For templates, personalize parameters by replacing {{name}} in each param
+      const components = payload.templateComponents?.map(comp => ({
+        ...comp,
+        parameters: comp.parameters.map(p => ({
+          ...p,
+          text: p.text?.replace(/\{\{name\}\}/gi, contactName),
+        })),
+      }));
+      return sendWhatsAppTemplateMessage(
+        config,
+        phoneNumber,
+        payload.templateName || '',
+        payload.languageCode || 'en',
+        components
+      );
+    }
 
     default:
       return { success: false, error: `Unknown message type: ${payload.type}` };
@@ -270,9 +357,17 @@ async function sendMessageByType(
 async function processBulkJob(
   jobId: string,
   contacts: Array<{ id?: string; phoneNumber: string; name: string }>,
-  payload: BulkMessagePayload
+  payload: BulkMessagePayload,
+  phoneConfig: WhatsAppPhoneConfig | null
 ) {
   console.log(`[BULK SEND] Starting job ${jobId} with ${contacts.length} contacts, type: ${payload.type}`);
+
+  // Load anti-blocking config
+  const config = await getAutomationConfig();
+  const ab = config?.antiBlocking;
+  const bulkDelaySec = ab?.bulkMessageDelaySec ?? DEFAULT_BULK_DELAY_SEC;
+  const batchSize = ab?.bulkBatchSize ?? DEFAULT_BULK_BATCH_SIZE;
+  const batchPauseSec = ab?.bulkBatchPauseSec ?? DEFAULT_BULK_BATCH_PAUSE_SEC;
 
   // Update job status to processing
   await updateBulkJobProgress(jobId, { status: 'processing' });
@@ -281,10 +376,12 @@ async function processBulkJob(
   let failedCount = 0;
   const errors: Array<{ contactId: string; phoneNumber: string; error: string }> = [];
 
-  for (const contact of contacts) {
+  for (let i = 0; i < contacts.length; i++) {
+    const contact = contacts[i];
     try {
       // Send message based on type
       const result = await sendMessageByType(
+        phoneConfig!,
         contact.phoneNumber,
         contact.name,
         payload
@@ -312,8 +409,16 @@ async function processBulkJob(
         });
       }
 
-      // Rate limiting delay
-      await new Promise((resolve) => setTimeout(resolve, MESSAGE_DELAY_MS));
+      // Anti-blocking: random delay between messages (default 1-3s)
+      const delayMs = getRandomDelayMs(Math.max(1, bulkDelaySec - 1), bulkDelaySec + 1);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+      // Anti-blocking: batch pause every N messages
+      if (batchSize > 0 && (i + 1) % batchSize === 0 && i + 1 < contacts.length) {
+        const pauseMs = getRandomDelayMs(batchPauseSec - 10, batchPauseSec + 10);
+        console.log(`[BULK SEND] Batch pause after ${i + 1} messages: ${Math.round(pauseMs / 1000)}s`);
+        await new Promise((resolve) => setTimeout(resolve, pauseMs));
+      }
     } catch (error) {
       failedCount++;
       errors.push({
