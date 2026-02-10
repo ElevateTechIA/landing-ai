@@ -314,6 +314,9 @@ export default function WhatsAppMessagesPage() {
   const [bulkSelectedTemplate, setBulkSelectedTemplate] = useState<MessageTemplate | null>(null);
   const [bulkTemplateParams, setBulkTemplateParams] = useState<Record<string, string>>({});
 
+  // Media upload state
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
   // Automation state (Phase 4)
   const [autoReplies, setAutoReplies] = useState<AutoReply[]>([]);
   const [automationConfig, setAutomationConfig] = useState<AutomationConfig>({
@@ -1069,6 +1072,28 @@ export default function WhatsAppMessagesPage() {
     return fields;
   };
 
+  const handleMediaUpload = async (
+    file: File,
+    setParams: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  ) => {
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setParams(prev => ({ ...prev, header_media: data.url }));
+      } else {
+        setError(data.error || 'Upload failed');
+      }
+    } catch {
+      setError('Failed to upload file');
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
   const allTemplateParamsFilled = (template: MessageTemplate, params: Record<string, string>): boolean => {
     const fields = getTemplateParamFields(template);
     if (fields.length === 0) return true;
@@ -1539,6 +1564,10 @@ export default function WhatsAppMessagesPage() {
                       onClick={() => {
                         setActivePhoneNumberId(pn.phoneNumberId);
                         setSelectedConversation(null);
+                        setBulkSelectedTemplate(null);
+                        setBulkTemplateParams({});
+                        setSelectedTemplate(null);
+                        setTemplateParams({});
                       }}
                       className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                         activePhoneNumberId === pn.phoneNumberId
@@ -1929,13 +1958,31 @@ export default function WhatsAppMessagesPage() {
                               {getTemplateParamFields(selectedTemplate).map(field => (
                                 <div key={field.key}>
                                   <label className="text-xs text-gray-500 mb-0.5 block">{field.label}</label>
-                                  <input
-                                    type="text"
-                                    placeholder={field.placeholder}
-                                    value={templateParams[field.key] || ''}
-                                    onChange={(e) => setTemplateParams(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                    className="w-full px-3 py-1.5 text-sm border border-green-200 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
-                                  />
+                                  <div className="flex gap-1">
+                                    <input
+                                      type="text"
+                                      placeholder={field.placeholder}
+                                      value={templateParams[field.key] || ''}
+                                      onChange={(e) => setTemplateParams(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                      className="w-full px-3 py-1.5 text-sm border border-green-200 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                                    />
+                                    {field.key === 'header_media' && (
+                                      <label className={`shrink-0 px-2 py-1.5 text-xs font-medium rounded cursor-pointer ${uploadingMedia ? 'bg-gray-300 text-gray-500' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                                        {uploadingMedia ? '...' : 'Upload'}
+                                        <input
+                                          type="file"
+                                          accept="image/*,video/mp4,application/pdf"
+                                          className="hidden"
+                                          disabled={uploadingMedia}
+                                          onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handleMediaUpload(f, setTemplateParams);
+                                            e.target.value = '';
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -2466,13 +2513,31 @@ export default function WhatsAppMessagesPage() {
                                     {getTemplateParamFields(bulkSelectedTemplate).map(field => (
                                       <div key={field.key}>
                                         <label className="text-xs text-gray-500 mb-0.5 block">{field.label} {field.key === 'body_1' ? '(use {{name}} for contact name)' : ''}</label>
-                                        <input
-                                          type="text"
-                                          placeholder={field.key === 'body_1' ? '{{name}}' : field.placeholder}
-                                          value={bulkTemplateParams[field.key] || ''}
-                                          onChange={(e) => setBulkTemplateParams(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
-                                        />
+                                        <div className="flex gap-1">
+                                          <input
+                                            type="text"
+                                            placeholder={field.key === 'body_1' ? '{{name}}' : field.placeholder}
+                                            value={bulkTemplateParams[field.key] || ''}
+                                            onChange={(e) => setBulkTemplateParams(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
+                                          />
+                                          {field.key === 'header_media' && (
+                                            <label className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded cursor-pointer ${uploadingMedia ? 'bg-gray-300 text-gray-500' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                                              {uploadingMedia ? 'Uploading...' : 'Upload'}
+                                              <input
+                                                type="file"
+                                                accept="image/*,video/mp4,application/pdf"
+                                                className="hidden"
+                                                disabled={uploadingMedia}
+                                                onChange={(e) => {
+                                                  const f = e.target.files?.[0];
+                                                  if (f) handleMediaUpload(f, setBulkTemplateParams);
+                                                  e.target.value = '';
+                                                }}
+                                              />
+                                            </label>
+                                          )}
+                                        </div>
                                       </div>
                                     ))}
                                   </div>

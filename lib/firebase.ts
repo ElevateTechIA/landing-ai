@@ -1,5 +1,6 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
 // Inicializar Firebase Admin solo una vez
 let db: ReturnType<typeof getFirestore>;
@@ -18,6 +19,7 @@ try {
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
         }),
+        storageBucket: `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
       });
       console.log('Firebase initialized successfully');
     }
@@ -31,6 +33,11 @@ try {
 }
 
 export { db };
+
+export function getStorageBucket() {
+  const projectId = process.env.FIREBASE_PROJECT_ID || 'landing-ai-meetings';
+  return getStorage().bucket(`${projectId}.firebasestorage.app`);
+}
 
 // Colecciones
 export const collections = {

@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
     // Create bulk job
     const job: Omit<BulkSendJob, 'id'> = {
       status: isScheduled ? 'scheduled' : 'pending',
-      name: name?.trim() || undefined,
+      ...(name?.trim() && { name: name.trim() }),
       message: payload.type === 'template' ? `[Template: ${payload.templateName}]` : payload.bodyText.trim(),
       messageType: payload.type,
       messagePayload: payload,
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
 
     if (!createResult.success || !createResult.id) {
       return NextResponse.json(
-        { success: false, error: 'Failed to create bulk job' },
+        { success: false, error: createResult.error || 'Failed to create bulk job' },
         { status: 500 }
       );
     }
@@ -287,7 +287,7 @@ async function sendMessageByType(
   phoneNumber: string,
   contactName: string,
   payload: BulkMessagePayload
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
   // Personalize body text (replace {{name}} with contact name)
   const personalizedBody = payload.bodyText.replace(/\{\{name\}\}/gi, contactName);
 
@@ -375,11 +375,13 @@ async function processBulkJob(
   let sentCount = 0;
   let failedCount = 0;
   const errors: Array<{ contactId: string; phoneNumber: string; error: string }> = [];
+  const sentMessageIds: Array<{ phoneNumber: string; messageId: string }> = [];
 
   for (let i = 0; i < contacts.length; i++) {
     const contact = contacts[i];
     try {
       // Send message based on type
+      console.log(`[BULK SEND] Sending to ${contact.phoneNumber} (${contact.name})`);
       const result = await sendMessageByType(
         phoneConfig!,
         contact.phoneNumber,
@@ -389,6 +391,10 @@ async function processBulkJob(
 
       if (result.success) {
         sentCount++;
+        if (result.messageId) {
+          sentMessageIds.push({ phoneNumber: contact.phoneNumber, messageId: result.messageId });
+          console.log(`[BULK SEND] Sent to ${contact.phoneNumber} - messageId: ${result.messageId}`);
+        }
         // Update contact's lastContacted
         await updateContactLastContacted(contact.phoneNumber);
       } else {
@@ -436,9 +442,13 @@ async function processBulkJob(
     failedCount,
     errors,
     completedAt: new Date(),
+    ...(sentMessageIds.length > 0 && { sentMessageIds }),
   });
 
   console.log(
     `[BULK SEND] Job ${jobId} completed. Sent: ${sentCount}, Failed: ${failedCount}`
   );
+  if (sentMessageIds.length > 0) {
+    console.log(`[BULK SEND] Message IDs:`, sentMessageIds);
+  }
 }
