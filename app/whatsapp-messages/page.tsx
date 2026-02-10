@@ -1499,8 +1499,38 @@ export default function WhatsAppMessagesPage() {
               <h1 className="text-2xl font-bold text-gray-900">WhatsApp Messages</h1>
               <p className="text-sm text-gray-500 mt-1">Manage conversations, contacts, and bulk messaging</p>
             </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Tabs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div className="border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <nav className="-mb-px flex space-x-8">
+              {[
+                { id: 'conversations' as TabType, label: 'Conversations', icon: '💬' },
+                { id: 'contacts' as TabType, label: 'Contacts', icon: '👥' },
+                { id: 'bulk-send' as TabType, label: 'Broadcast', icon: '📤' },
+                { id: 'automation' as TabType, label: 'Automation', icon: '⚡' },
+                { id: 'analytics' as TabType, label: 'Analytics', icon: '📊' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === tab.id
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <span className="mr-2">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
             {phoneNumbers.length > 1 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs text-gray-500 font-medium">Phone:</span>
                 <div className="flex bg-gray-100 rounded-lg p-0.5">
                   {phoneNumbers.map((pn) => (
@@ -1523,34 +1553,6 @@ export default function WhatsAppMessagesPage() {
               </div>
             )}
           </div>
-        </div>
-      </header>
-
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            {[
-              { id: 'conversations' as TabType, label: 'Conversations', icon: '💬' },
-              { id: 'contacts' as TabType, label: 'Contacts', icon: '👥' },
-              { id: 'bulk-send' as TabType, label: 'Broadcast', icon: '📤' },
-              { id: 'automation' as TabType, label: 'Automation', icon: '⚡' },
-              { id: 'analytics' as TabType, label: 'Analytics', icon: '📊' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
-          </nav>
         </div>
       </div>
 

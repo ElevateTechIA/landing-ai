@@ -527,21 +527,31 @@ export async function getRecentWhatsAppConversations(
   businessPhoneNumberId?: string
 ): Promise<WhatsAppConversation[]> {
   try {
-    let query = db
+    const snapshot = await db
       .collection(collections.whatsappConversations)
       .orderBy('lastMessageAt', 'desc')
-      .limit(limit);
+      .limit(businessPhoneNumberId ? limit * 2 : limit)
+      .get();
 
-    if (businessPhoneNumberId) {
-      query = query.where('businessPhoneNumberId', '==', businessPhoneNumberId);
-    }
-
-    const snapshot = await query.get();
-
-    return snapshot.docs.map((doc) => ({
+    let conversations = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as WhatsAppConversation[];
+
+    if (businessPhoneNumberId) {
+      const { getDefaultWhatsAppConfig } = require('@/lib/whatsapp-config');
+      const defaultConfig = getDefaultWhatsAppConfig();
+      const isDefaultPhone = defaultConfig?.phoneNumberId === businessPhoneNumberId;
+
+      conversations = conversations.filter((c) => {
+        if (c.businessPhoneNumberId === businessPhoneNumberId) return true;
+        // Legacy conversations (no businessPhoneNumberId) belong to the default phone
+        if (!c.businessPhoneNumberId && isDefaultPhone) return true;
+        return false;
+      }).slice(0, limit);
+    }
+
+    return conversations;
   } catch (error) {
     console.error('[FIREBASE] Error getting recent WhatsApp conversations:', error);
     return [];
