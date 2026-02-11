@@ -4,6 +4,7 @@
  */
 
 import { WhatsAppPhoneConfig } from './whatsapp-config';
+import * as twilioWA from './twilio-whatsapp';
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -30,6 +31,7 @@ export async function sendWhatsAppCloudMessage(
   to: string,
   body: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioText(config, to, body);
   const { accessToken, phoneNumberId } = config;
 
   // Clean phone number - ensure it's in proper format
@@ -105,6 +107,7 @@ export async function sendWhatsAppTemplateMessage(
     }>;
   }>
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioTemplate(config, to, templateName, languageCode, components);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -185,6 +188,7 @@ export async function sendWhatsAppInteractiveList(
     }>;
   }>
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioListFallback(config, to, bodyText, buttonText, sections);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -258,6 +262,7 @@ export async function sendWhatsAppReplyButtons(
   headerText?: string,
   footerText?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioReplyButtonsFallback(config, to, bodyText, buttons, headerText, footerText);
   const { accessToken, phoneNumberId } = config;
 
   if (buttons.length > 3) {
@@ -347,6 +352,7 @@ export async function sendWhatsAppCTAButton(
   headerText?: string,
   footerText?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioCTAFallback(config, to, bodyText, buttonText, url, headerText, footerText);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -426,6 +432,7 @@ export async function sendWhatsAppLocationRequest(
   to: string,
   bodyText: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioText(config, to, bodyText);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -490,6 +497,7 @@ export async function markMessageAsRead(
   config: WhatsAppPhoneConfig,
   messageId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.markMessageAsReadTwilio();
   const { accessToken, phoneNumberId } = config;
 
   try {
@@ -606,6 +614,7 @@ export async function sendWhatsAppImage(
   caption?: string,
   replyToMessageId?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioMedia(config, to, imageUrl, caption);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -666,6 +675,7 @@ export async function sendWhatsAppDocument(
   caption?: string,
   replyToMessageId?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioMedia(config, to, documentUrl, caption);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -725,6 +735,7 @@ export async function sendWhatsAppAudio(
   audioUrl: string,
   replyToMessageId?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioMedia(config, to, audioUrl);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -781,6 +792,7 @@ export async function sendWhatsAppVideo(
   caption?: string,
   replyToMessageId?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioMedia(config, to, videoUrl, caption);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -839,6 +851,7 @@ export async function sendWhatsAppReaction(
   messageId: string,
   emoji: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioReaction();
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -890,6 +903,7 @@ export async function sendWhatsAppReply(
   body: string,
   replyToMessageId: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioText(config, to, body);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -942,6 +956,10 @@ export async function sendWhatsAppLocation(
   name?: string,
   address?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') {
+    const text = name ? `${name}\n${address || ''}\nhttps://maps.google.com/?q=${latitude},${longitude}` : `https://maps.google.com/?q=${latitude},${longitude}`;
+    return twilioWA.sendTwilioText(config, to, text);
+  }
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -994,6 +1012,11 @@ export async function uploadWhatsAppMedia(
   mimeType: string,
   filename: string
 ): Promise<{ success: boolean; mediaId?: string; error?: string }> {
+  if (config.provider === 'twilio') {
+    // Twilio uses URLs directly, not media IDs. For now return an error —
+    // file uploads for Twilio numbers should go through Firebase Storage first.
+    return { success: false, error: 'Media upload not supported for Twilio — use a public URL instead' };
+  }
   const { accessToken, phoneNumberId } = config;
 
   try {
@@ -1039,6 +1062,7 @@ export async function sendWhatsAppMediaById(
   mediaId: string,
   options?: { caption?: string; filename?: string; replyToMessageId?: string }
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTwilioMediaById(config, to, mediaType, mediaId, options);
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');
@@ -1099,6 +1123,7 @@ export async function sendTypingIndicator(
   config: WhatsAppPhoneConfig,
   to: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (config.provider === 'twilio') return twilioWA.sendTypingIndicatorTwilio();
   const { accessToken, phoneNumberId } = config;
 
   const cleanPhone = to.replace(/[^\d+]/g, '');

@@ -9,6 +9,7 @@ export async function GET() {
     phoneNumberId: c.phoneNumberId,
     displayName: c.displayName,
     displayPhone: c.displayPhone,
+    provider: c.provider || 'meta',
   }));
 
   return NextResponse.json({ success: true, phoneNumbers });

@@ -41,7 +41,24 @@ export async function GET(request: NextRequest) {
     const phoneNumberId = request.nextUrl.searchParams.get('phoneNumberId') || '';
     const config = getWhatsAppConfig(phoneNumberId) || getDefaultWhatsAppConfig();
 
-    if (!config || !config.accessToken || !config.wabaId) {
+    if (!config) {
+      return NextResponse.json(
+        { success: false, error: 'No WhatsApp config found' },
+        { status: 500 }
+      );
+    }
+
+    // Twilio numbers: templates are managed via Twilio Console, not Meta API
+    if (config.provider === 'twilio') {
+      return NextResponse.json({
+        success: true,
+        templates: [],
+        provider: 'twilio',
+        message: 'Templates for this number are managed in the Twilio Console',
+      });
+    }
+
+    if (!config.accessToken || !config.wabaId) {
       return NextResponse.json(
         {
           success: false,
