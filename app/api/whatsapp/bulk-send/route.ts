@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
     };
 
     const phoneConfig = getWhatsAppConfig(phoneNumberId || '') || getDefaultWhatsAppConfig();
+    console.log(`[BULK SEND] phoneNumberId from request: "${phoneNumberId}", resolved provider: "${phoneConfig?.provider}", resolved phoneNumberId: "${phoneConfig?.phoneNumberId}", displayName: "${phoneConfig?.displayName}"`);
 
     // Support both legacy 'message' field and new 'messagePayload'
     const payload: BulkMessagePayload = messagePayload || {
