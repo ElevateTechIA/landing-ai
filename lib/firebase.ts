@@ -1,4 +1,5 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth as getAdminAuthFn } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
@@ -34,6 +35,10 @@ try {
 
 export { db };
 
+export function getAdminAuth() {
+  return getAdminAuthFn();
+}
+
 export function getStorageBucket() {
   const projectId = process.env.FIREBASE_PROJECT_ID || 'landing-ai-meetings';
   return getStorage().bucket(`${projectId}.firebasestorage.app`);
@@ -54,6 +59,11 @@ export const collections = {
   whatsappTags: 'whatsappTags',
   whatsappAutoReplies: 'whatsappAutoReplies',
   whatsappAutomationConfig: 'whatsappAutomationConfig',
+  // Social Media Publishing collections
+  socialMediaUsers: 'socialMediaUsers',
+  socialAccounts: 'socialAccounts',
+  socialPosts: 'socialPosts',
+  scheduledJobs: 'scheduledJobs',
 };
 
 // Tipos para TypeScript

@@ -15,5 +15,26 @@ service cloud.firestore {
     match /availabilitySlots/{slotId} {
       allow read, write: if false;
     }
+
+    // Social Media: Solo acceso desde el servidor (Firebase Admin SDK)
+    match /socialMediaUsers/{userId} {
+      allow read, write: if false;
+    }
+
+    match /socialAccounts/{accountId} {
+      allow read, write: if false;
+    }
+
+    match /socialPosts/{postId} {
+      allow read, write: if false;
+
+      match /publishLogs/{logId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /scheduledJobs/{jobId} {
+      allow read, write: if false;
+    }
   }
 }

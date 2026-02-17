@@ -1,0 +1,28 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
+
+  if (mode === "subscribe" && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+    return new NextResponse(challenge, { status: 200 });
+  }
+
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    // TODO: Process Meta webhook events (page mentions, comments, etc.)
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error("Meta webhook error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

@@ -60,6 +60,12 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4 lg:gap-6">
+            <Link
+              href="/social-media"
+              className="text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors"
+            >
+              Social Media
+            </Link>
             <LanguageSwitcher />
           </div>
 
