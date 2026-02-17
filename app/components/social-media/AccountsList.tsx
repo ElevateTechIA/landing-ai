@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useLanguage } from "@/app/context/LanguageContext";
+import { getConnectedAccounts } from "@/actions/social-media/account.actions";
 import type { PlatformId } from "@/lib/social-media/platforms/types";
 import {
   Facebook,
@@ -12,6 +14,7 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  Loader2,
 } from "lucide-react";
 
 const platformConfigs: {
@@ -42,14 +45,30 @@ const statusColors = {
   error: "text-red-600",
 };
 
+type ConnectedAccount = {
+  id: string;
+  platform: string;
+  platformAccountName: string;
+  platformAccountAvatar: string | null;
+  status: "active" | "expired" | "revoked" | "error";
+  lastError: string | null;
+  connectedAt: string | null;
+};
+
 export default function AccountsList() {
   const { t } = useLanguage();
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // TODO: Fetch connected accounts from server action
-  const connectedAccounts: Record<string, { name: string; status: "active" | "expired" | "revoked" | "error" }> = {};
+  useEffect(() => {
+    getConnectedAccounts()
+      .then((data) => setAccounts(data as ConnectedAccount[]))
+      .catch(() => setAccounts([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   function handleConnect(platformId: PlatformId) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const baseUrl = window.location.origin;
     if (platformId === "facebook" || platformId === "instagram" || platformId === "whatsapp") {
       window.location.href = `${baseUrl}/api/social-media/auth/callback/meta?initiate=true&platform=${platformId}`;
     } else if (platformId === "tiktok") {
@@ -59,10 +78,18 @@ export default function AccountsList() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {platformConfigs.map(({ id, icon: Icon, color, bgColor, borderColor }) => {
-        const account = connectedAccounts[id];
+        const account = accounts.find((a) => a.platform === id);
         const StatusIcon = account ? statusIcons[account.status] : null;
         const statusColor = account ? statusColors[account.status] : "";
 
@@ -89,7 +116,7 @@ export default function AccountsList() {
                       <StatusIcon className={`w-3.5 h-3.5 ${statusColor}`} />
                     )}
                     <span className={`text-xs ${statusColor}`}>
-                      {t(`socialMedia.accounts.${account.status}`)}
+                      {account.platformAccountName}
                     </span>
                   </div>
                 )}
@@ -98,9 +125,17 @@ export default function AccountsList() {
 
             {account ? (
               <div className="space-y-2">
-                <p className="text-sm text-gray-600">{account.name}</p>
-                <button className="w-full text-sm text-red-600 hover:text-red-700 py-2 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                  {t("socialMedia.accounts.disconnect")}
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm text-green-700">
+                    {t(`socialMedia.accounts.${account.status}`)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleConnect(id)}
+                  className="w-full text-sm text-indigo-600 hover:text-indigo-700 py-2 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                  {t("socialMedia.accounts.connect")} again
                 </button>
               </div>
             ) : (

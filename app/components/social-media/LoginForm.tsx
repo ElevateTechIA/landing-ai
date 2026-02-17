@@ -28,10 +28,11 @@ export default function LoginForm() {
       if (result.success) {
         router.push("/social-media/dashboard");
       } else {
-        setError(t("socialMedia.auth.errors.generic"));
+        setError(`Session error: ${result.error ?? "unknown"}`);
       }
-    } catch {
-      setError(t("socialMedia.auth.errors.generic"));
+    } catch (err: unknown) {
+      const firebaseError = err as { code?: string; message?: string };
+      setError(`${firebaseError.code ?? "ERROR"}: ${firebaseError.message ?? "Unknown error"}`);
     } finally {
       setLoading(false);
     }
