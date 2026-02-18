@@ -332,6 +332,9 @@ const translations = {
         empty: 'No posts yet. Create your first post!',
         viewDetail: 'Post Detail',
       },
+      schedule: {
+        empty: 'No scheduled posts. Schedule one from Compose!',
+      },
       accounts: {
         title: 'Connected Accounts',
         connect: 'Connect',
@@ -634,6 +637,9 @@ const translations = {
         title: 'Publicaciones',
         empty: '¡Aún no hay publicaciones. Crea tu primer post!',
         viewDetail: 'Detalle del Post',
+      },
+      schedule: {
+        empty: '¡No hay posts programados. Programa uno desde Componer!',
       },
       accounts: {
         title: 'Cuentas Conectadas',
