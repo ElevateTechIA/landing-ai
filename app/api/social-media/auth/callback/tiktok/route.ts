@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const scopes = "user.info.basic,video.upload,video.publish";
+    const scopes = "user.info.basic,user.info.profile,video.list";
     const stateParam = randomUUID();
 
     const authUrl =
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
       tokenAuthTag: encryptedAccess.authTag,
       tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
       tokenRefreshedAt: FieldValue.serverTimestamp(),
-      scopes: ["user.info.basic", "video.upload", "video.publish"],
+      scopes: ["user.info.basic", "user.info.profile", "video.list"],
       metadata: {
         openId,
         displayName,
