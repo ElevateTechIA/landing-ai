@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import NetworkSelector from "./NetworkSelector";
 import { getConnectedAccounts } from "@/actions/social-media/account.actions";
-import { getSignedUploadUrl } from "@/actions/social-media/media.actions";
 import { createPost, publishPostNow } from "@/actions/social-media/post.actions";
 
 export default function PostComposer() {
@@ -93,28 +92,31 @@ export default function PostComposer() {
         return;
       }
 
-      // 2. Upload media files to Firebase Storage
+      // 2. Upload media files via API route (avoids CORS issues)
       const mediaUrls: string[] = [];
       const mediaTypes: ("image" | "video")[] = [];
 
       for (const file of mediaFiles) {
-        const urlResult = await getSignedUploadUrl(file.name, file.type);
-        if (!urlResult.success || !urlResult.signedUrl) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch("/api/social-media/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
           setPublishResult({
             type: "error",
-            message: `Failed to upload ${file.name}`,
+            message: `Failed to upload ${file.name}: ${err.error}`,
           });
           setLoading(false);
           return;
         }
 
-        await fetch(urlResult.signedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-
-        mediaUrls.push(urlResult.publicUrl!);
+        const { publicUrl } = await uploadRes.json();
+        mediaUrls.push(publicUrl);
         mediaTypes.push(file.type.startsWith("video/") ? "video" : "image");
       }
 
