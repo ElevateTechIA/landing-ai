@@ -134,6 +134,17 @@ export async function publishPostNow(postId: string) {
       const account = accountDoc.data();
 
       // Decrypt tokens
+      let refreshToken: string | null = null;
+      if (account.refreshTokenEncrypted) {
+        try {
+          const refreshIV = account.refreshTokenIV ?? account.tokenIV;
+          const refreshAuthTag = account.refreshTokenAuthTag ?? account.tokenAuthTag;
+          refreshToken = decryptToken(account.refreshTokenEncrypted, refreshIV, refreshAuthTag);
+        } catch {
+          // Refresh token may have been encrypted with different IV/authTag — skip it
+        }
+      }
+
       const decryptedAccount: DecryptedSocialAccount = {
         id: accountDoc.id,
         userId: account.userId,
@@ -145,13 +156,7 @@ export async function publishPostNow(postId: string) {
           account.tokenIV,
           account.tokenAuthTag
         ),
-        refreshToken: account.refreshTokenEncrypted
-          ? decryptToken(
-              account.refreshTokenEncrypted,
-              account.tokenIV,
-              account.tokenAuthTag
-            )
-          : null,
+        refreshToken,
         metadata: account.metadata,
       };
 

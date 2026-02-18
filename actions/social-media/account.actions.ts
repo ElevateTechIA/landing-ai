@@ -130,6 +130,17 @@ export async function refreshAccountToken(accountId: string) {
 
     const adapter = getPlatformAdapter(account.platform);
 
+    let refreshToken: string | null = null;
+    if (account.refreshTokenEncrypted) {
+      try {
+        const refreshIV = account.refreshTokenIV ?? account.tokenIV;
+        const refreshAuthTag = account.refreshTokenAuthTag ?? account.tokenAuthTag;
+        refreshToken = decryptToken(account.refreshTokenEncrypted, refreshIV, refreshAuthTag);
+      } catch {
+        // Refresh token may have been encrypted with different IV/authTag
+      }
+    }
+
     const decryptedAccount: DecryptedSocialAccount = {
       id: accountId,
       userId: account.userId,
@@ -141,13 +152,7 @@ export async function refreshAccountToken(accountId: string) {
         account.tokenIV,
         account.tokenAuthTag
       ),
-      refreshToken: account.refreshTokenEncrypted
-        ? decryptToken(
-            account.refreshTokenEncrypted,
-            account.tokenIV,
-            account.tokenAuthTag
-          )
-        : null,
+      refreshToken,
       metadata: account.metadata,
     };
 

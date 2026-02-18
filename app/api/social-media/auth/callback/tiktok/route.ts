@@ -153,6 +153,8 @@ export async function GET(request: NextRequest) {
       refreshTokenEncrypted: encryptedRefresh?.encrypted ?? null,
       tokenIV: encryptedAccess.iv,
       tokenAuthTag: encryptedAccess.authTag,
+      refreshTokenIV: encryptedRefresh?.iv ?? null,
+      refreshTokenAuthTag: encryptedRefresh?.authTag ?? null,
       tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
       tokenRefreshedAt: FieldValue.serverTimestamp(),
       scopes: ["user.info.basic", "user.info.profile", "video.list"],

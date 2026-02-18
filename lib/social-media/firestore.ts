@@ -53,6 +53,8 @@ export interface SocialAccountDoc {
   refreshTokenEncrypted: string | null;
   tokenIV: string;
   tokenAuthTag: string;
+  refreshTokenIV?: string | null;
+  refreshTokenAuthTag?: string | null;
   tokenExpiresAt: FirebaseFirestore.Timestamp | null;
   tokenRefreshedAt: FirebaseFirestore.Timestamp;
   scopes: string[];
