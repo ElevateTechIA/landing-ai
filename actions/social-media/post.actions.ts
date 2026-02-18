@@ -4,10 +4,44 @@ import { db } from "@/lib/firebase";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getSessionUser } from "./auth.actions";
 import { socialCollections } from "@/lib/social-media/firestore";
-import { decryptToken } from "@/lib/social-media/encryption";
+import { decryptToken, encryptToken } from "@/lib/social-media/encryption";
 import { getPlatformAdapter } from "@/lib/social-media/platforms/factory";
 import { schedulePost } from "@/lib/social-media/queue";
 import type { DecryptedSocialAccount, PublishPayload } from "@/lib/social-media/platforms/types";
+
+/**
+ * Refresh the access token if it's expired or about to expire (within 5 minutes).
+ * Returns the (possibly refreshed) decrypted account.
+ */
+async function ensureFreshToken(
+  accountDocId: string,
+  account: DecryptedSocialAccount,
+  tokenExpiresAt: FirebaseFirestore.Timestamp | null
+): Promise<DecryptedSocialAccount> {
+  // Check if token is expired or expiring within 5 minutes
+  const expiresMs = tokenExpiresAt?.toMillis?.() ?? 0;
+  const isExpired = expiresMs > 0 && expiresMs < Date.now() + 5 * 60 * 1000;
+
+  if (!isExpired) return account;
+  if (!account.refreshToken) return account;
+
+  const adapter = getPlatformAdapter(account.platform);
+  const result = await adapter.refreshToken(account);
+  if (!result) return account;
+
+  // Encrypt and save the new token
+  const encrypted = encryptToken(result.accessToken);
+  await socialCollections.socialAccounts().doc(accountDocId).update({
+    accessTokenEncrypted: encrypted.encrypted,
+    tokenIV: encrypted.iv,
+    tokenAuthTag: encrypted.authTag,
+    tokenExpiresAt: result.expiresAt,
+    tokenRefreshedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  } as never);
+
+  return { ...account, accessToken: result.accessToken };
+}
 
 export async function createPost(data: {
   text: string;
@@ -144,7 +178,7 @@ export async function publishPostNow(postId: string) {
         }
       }
 
-      const decryptedAccount: DecryptedSocialAccount = {
+      let decryptedAccount: DecryptedSocialAccount = {
         id: accountDoc.id,
         userId: account.userId,
         platform: account.platform,
@@ -158,6 +192,13 @@ export async function publishPostNow(postId: string) {
         refreshToken,
         metadata: account.metadata,
       };
+
+      // Auto-refresh expired tokens (e.g., YouTube tokens expire after 1 hour)
+      decryptedAccount = await ensureFreshToken(
+        accountDoc.id,
+        decryptedAccount,
+        account.tokenExpiresAt
+      );
 
       const adapter = getPlatformAdapter(account.platform);
       const payload: PublishPayload = {

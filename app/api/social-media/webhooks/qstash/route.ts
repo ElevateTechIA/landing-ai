@@ -1,10 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
 import { socialCollections } from "@/lib/social-media/firestore";
-import { decryptToken } from "@/lib/social-media/encryption";
+import { decryptToken, encryptToken } from "@/lib/social-media/encryption";
 import { getPlatformAdapter } from "@/lib/social-media/platforms/factory";
 import { FieldValue } from "firebase-admin/firestore";
 import type { DecryptedSocialAccount, PublishPayload } from "@/lib/social-media/platforms/types";
+
+async function ensureFreshToken(
+  accountDocId: string,
+  account: DecryptedSocialAccount,
+  tokenExpiresAt: FirebaseFirestore.Timestamp | null
+): Promise<DecryptedSocialAccount> {
+  const expiresMs = tokenExpiresAt?.toMillis?.() ?? 0;
+  const isExpired = expiresMs > 0 && expiresMs < Date.now() + 5 * 60 * 1000;
+  if (!isExpired) return account;
+  if (!account.refreshToken) return account;
+
+  const adapter = getPlatformAdapter(account.platform);
+  const result = await adapter.refreshToken(account);
+  if (!result) return account;
+
+  const encrypted = encryptToken(result.accessToken);
+  await socialCollections.socialAccounts().doc(accountDocId).update({
+    accessTokenEncrypted: encrypted.encrypted,
+    tokenIV: encrypted.iv,
+    tokenAuthTag: encrypted.authTag,
+    tokenExpiresAt: result.expiresAt,
+    tokenRefreshedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  } as never);
+
+  return { ...account, accessToken: result.accessToken };
+}
 
 const receiver = new Receiver({
   currentSigningKey: process.env.UPSTASH_QSTASH_CURRENT_SIGNING_KEY!,
@@ -77,7 +104,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const decryptedAccount: DecryptedSocialAccount = {
+      let decryptedAccount: DecryptedSocialAccount = {
         id: accountDoc.id,
         userId: account.userId,
         platform: account.platform,
@@ -91,6 +118,13 @@ export async function POST(request: NextRequest) {
         refreshToken,
         metadata: account.metadata,
       };
+
+      // Auto-refresh expired tokens
+      decryptedAccount = await ensureFreshToken(
+        accountDoc.id,
+        decryptedAccount,
+        account.tokenExpiresAt
+      );
 
       // 4. Build payload
       const adapter = getPlatformAdapter(account.platform);
