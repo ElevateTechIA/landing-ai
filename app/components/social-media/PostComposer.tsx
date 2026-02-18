@@ -92,31 +92,47 @@ export default function PostComposer() {
         return;
       }
 
-      // 2. Upload media files via API route (avoids CORS issues)
+      // 2. Upload media files via presigned URLs (bypasses Vercel body size limit)
       const mediaUrls: string[] = [];
       const mediaTypes: ("image" | "video")[] = [];
 
       for (const file of mediaFiles) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const uploadRes = await fetch("/api/social-media/upload", {
+        // Step A: Get presigned upload + read URLs from our API
+        const presignRes = await fetch("/api/social-media/upload", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: file.name, contentType: file.type }),
         });
 
-        if (!uploadRes.ok) {
-          const err = await uploadRes.json();
+        if (!presignRes.ok) {
+          const err = await presignRes.json();
           setPublishResult({
             type: "error",
-            message: `Failed to upload ${file.name}: ${err.error}`,
+            message: `Failed to prepare upload for ${file.name}: ${err.error}`,
           });
           setLoading(false);
           return;
         }
 
-        const { publicUrl } = await uploadRes.json();
-        mediaUrls.push(publicUrl);
+        const { uploadUrl, readUrl } = await presignRes.json();
+
+        // Step B: Upload file directly to GCS (no Vercel size limit)
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+
+        if (!putRes.ok) {
+          setPublishResult({
+            type: "error",
+            message: `Failed to upload ${file.name}`,
+          });
+          setLoading(false);
+          return;
+        }
+
+        mediaUrls.push(readUrl);
         mediaTypes.push(file.type.startsWith("video/") ? "video" : "image");
       }
 
