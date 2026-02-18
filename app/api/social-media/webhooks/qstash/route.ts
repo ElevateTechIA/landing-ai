@@ -12,8 +12,8 @@ async function ensureFreshToken(
   tokenExpiresAt: FirebaseFirestore.Timestamp | null
 ): Promise<DecryptedSocialAccount> {
   const expiresMs = tokenExpiresAt?.toMillis?.() ?? 0;
-  const isExpired = expiresMs > 0 && expiresMs < Date.now() + 5 * 60 * 1000;
-  if (!isExpired) return account;
+  const shouldRefresh = expiresMs === 0 || expiresMs < Date.now() + 5 * 60 * 1000;
+  if (!shouldRefresh) return account;
   if (!account.refreshToken) return account;
 
   const adapter = getPlatformAdapter(account.platform);
