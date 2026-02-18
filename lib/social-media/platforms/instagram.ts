@@ -95,10 +95,8 @@ export class InstagramAdapter implements PlatformAdapter {
 
       const containerId = containerData.id;
 
-      // For videos, wait for processing
-      if (mediaItem.type === "video") {
-        await this.waitForProcessing(igAccountId, containerId, accessToken);
-      }
+      // Wait for media processing (required for videos, sometimes needed for images too)
+      await this.waitForProcessing(igAccountId, containerId, accessToken);
 
       // Publish the container
       const publishResponse = await fetch(
@@ -187,10 +185,8 @@ export class InstagramAdapter implements PlatformAdapter {
         };
       }
 
-      // Wait for video items to finish processing
-      if (item.type === "video") {
-        await this.waitForProcessing(igAccountId, data.id, accessToken);
-      }
+      // Wait for media to finish processing (required for videos, helpful for images)
+      await this.waitForProcessing(igAccountId, data.id, accessToken);
 
       childIds.push(data.id);
     }
@@ -260,24 +256,27 @@ export class InstagramAdapter implements PlatformAdapter {
     igAccountId: string,
     containerId: string,
     accessToken: string,
-    maxAttempts = 10
+    maxAttempts = 30
   ): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
+      // Check status immediately on first attempt, then wait before subsequent checks
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+
       const response = await fetch(
-        `https://graph.facebook.com/v21.0/${containerId}?fields=status_code`,
+        `https://graph.facebook.com/v21.0/${containerId}?fields=status_code,status`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const data = await response.json();
 
       if (data.status_code === "FINISHED") return;
       if (data.status_code === "ERROR") {
-        throw new Error("Video processing failed on Instagram");
+        throw new Error(`Media processing failed: ${data.status ?? "unknown error"}`);
       }
-
-      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
-    throw new Error("Video processing timed out");
+    throw new Error("Media processing timed out (90s). Try a smaller file or publish via Schedule.");
   }
 
   async validateToken(account: DecryptedSocialAccount): Promise<boolean> {
