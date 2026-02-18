@@ -263,19 +263,24 @@ export async function getUserPosts(
   const user = await getSessionUser();
   if (!user) return [];
 
-  const query = socialCollections
+  const snap = await socialCollections
     .posts()
     .where("userId", "==", user.uid)
-    .orderBy("createdAt", "desc")
-    .limit(statusFilter ? limit * 3 : limit);
+    .get();
 
-  const snap = await query.get();
   let docs = snap.docs;
   if (statusFilter) {
-    docs = docs.filter((doc) => doc.data().status === statusFilter).slice(0, limit);
+    docs = docs.filter((doc) => doc.data().status === statusFilter);
   }
 
-  return docs.map((doc) => ({
+  // Sort by createdAt descending in memory (avoids composite index requirement)
+  docs.sort((a, b) => {
+    const aTime = a.data().createdAt?.toMillis?.() ?? 0;
+    const bTime = b.data().createdAt?.toMillis?.() ?? 0;
+    return bTime - aTime;
+  });
+
+  return docs.slice(0, limit).map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() ?? null,
