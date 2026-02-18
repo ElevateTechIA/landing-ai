@@ -48,11 +48,14 @@ export async function POST(request: NextRequest) {
       metadata: { contentType: file.type },
     });
 
-    await gcsFile.makePublic();
+    // Generate a signed read URL (valid for 7 days) so external services can access the file
+    const [signedUrl] = await gcsFile.getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    });
 
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-
-    return NextResponse.json({ publicUrl, filePath });
+    return NextResponse.json({ publicUrl: signedUrl, filePath });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
