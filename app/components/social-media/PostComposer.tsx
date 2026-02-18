@@ -9,8 +9,13 @@ import {
   Clock,
   Loader2,
   X,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import NetworkSelector from "./NetworkSelector";
+import { getConnectedAccounts } from "@/actions/social-media/account.actions";
+import { getSignedUploadUrl } from "@/actions/social-media/media.actions";
+import { createPost, publishPostNow } from "@/actions/social-media/post.actions";
 
 export default function PostComposer() {
   const { t } = useLanguage();
@@ -23,6 +28,10 @@ export default function PostComposer() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [publishResult, setPublishResult] = useState<{
+    type: "success" | "error" | "partial";
+    message: string;
+  } | null>(null);
 
   const previewUrlsRef = useRef<string[]>([]);
 
@@ -66,8 +75,118 @@ export default function PostComposer() {
 
   async function handlePublish() {
     setLoading(true);
-    // TODO: Implement publish via server action
-    setTimeout(() => setLoading(false), 2000);
+    setPublishResult(null);
+
+    try {
+      // 1. Fetch connected accounts to map platform names → account IDs
+      const accounts = await getConnectedAccounts();
+      const targetAccounts = accounts.filter(
+        (a) => selectedPlatforms.includes(a.platform) && a.status === "active"
+      );
+
+      if (targetAccounts.length === 0) {
+        setPublishResult({
+          type: "error",
+          message: t("socialMedia.compose.noAccountsError"),
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Upload media files to Firebase Storage
+      const mediaUrls: string[] = [];
+      const mediaTypes: ("image" | "video")[] = [];
+
+      for (const file of mediaFiles) {
+        const urlResult = await getSignedUploadUrl(file.name, file.type);
+        if (!urlResult.success || !urlResult.signedUrl) {
+          setPublishResult({
+            type: "error",
+            message: `Failed to upload ${file.name}`,
+          });
+          setLoading(false);
+          return;
+        }
+
+        await fetch(urlResult.signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+
+        mediaUrls.push(urlResult.publicUrl!);
+        mediaTypes.push(file.type.startsWith("video/") ? "video" : "image");
+      }
+
+      // 3. Create post in Firestore
+      const result = await createPost({
+        text,
+        hashtags,
+        mediaUrls,
+        mediaTypes,
+        targetPlatforms: selectedPlatforms,
+        targetAccountIds: targetAccounts.map((a) => a.id),
+        scheduledAt: isScheduling ? scheduledDate : undefined,
+      });
+
+      if (!result.success) {
+        setPublishResult({ type: "error", message: result.error ?? "Unknown error" });
+        setLoading(false);
+        return;
+      }
+
+      // 4. If not scheduling, publish immediately
+      if (!isScheduling && result.postId) {
+        const publishRes = await publishPostNow(result.postId);
+
+        if (publishRes.success && publishRes.results) {
+          const failed = publishRes.results.filter((r) => !r.success);
+          if (failed.length > 0 && failed.length < publishRes.results.length) {
+            setPublishResult({
+              type: "partial",
+              message: failed.map((f) => `${f.platform}: ${f.error}`).join(", "),
+            });
+          } else if (failed.length === publishRes.results.length) {
+            setPublishResult({
+              type: "error",
+              message: failed.map((f) => `${f.platform}: ${f.error}`).join(", "),
+            });
+          } else {
+            setPublishResult({
+              type: "success",
+              message: t("socialMedia.compose.publishSuccess"),
+            });
+          }
+        } else {
+          setPublishResult({
+            type: "error",
+            message: publishRes.error ?? "Publish failed",
+          });
+        }
+      } else {
+        setPublishResult({
+          type: "success",
+          message: t("socialMedia.compose.scheduleSuccess"),
+        });
+      }
+
+      // Reset form on success
+      setText("");
+      setHashtags([]);
+      setSelectedPlatforms([]);
+      setMediaFiles([]);
+      setMediaPreviews([]);
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current = [];
+    } catch (error) {
+      console.error("Publish error:", error);
+      setPublishResult({
+        type: "error",
+        message: error instanceof Error ? error.message : "Unexpected error",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -191,6 +310,32 @@ export default function PostComposer() {
           </div>
         )}
       </div>
+
+      {/* Result notification */}
+      {publishResult && (
+        <div
+          className={`flex items-center gap-3 p-4 rounded-xl border ${
+            publishResult.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : publishResult.type === "partial"
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {publishResult.type === "success" ? (
+            <CheckCircle className="w-5 h-5 shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 shrink-0" />
+          )}
+          <p className="text-sm">{publishResult.message}</p>
+          <button
+            onClick={() => setPublishResult(null)}
+            className="ml-auto shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Publish button */}
       <button

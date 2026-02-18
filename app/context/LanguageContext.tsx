@@ -323,6 +323,9 @@ const translations = {
         schedule: 'Schedule',
         scheduleFor: 'Schedule for',
         publishing: 'Publishing...',
+        publishSuccess: 'Published successfully!',
+        scheduleSuccess: 'Post scheduled successfully!',
+        noAccountsError: 'No active accounts found for selected platforms. Connect them first.',
       },
       posts: {
         title: 'Posts',
@@ -623,6 +626,9 @@ const translations = {
         schedule: 'Programar',
         scheduleFor: 'Programar para',
         publishing: 'Publicando...',
+        publishSuccess: '¡Publicado exitosamente!',
+        scheduleSuccess: '¡Post programado exitosamente!',
+        noAccountsError: 'No se encontraron cuentas activas para las plataformas seleccionadas. Conéctalas primero.',
       },
       posts: {
         title: 'Publicaciones',
