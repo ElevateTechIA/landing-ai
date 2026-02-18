@@ -13,13 +13,23 @@ async function ensureFreshToken(
 ): Promise<DecryptedSocialAccount> {
   const expiresMs = tokenExpiresAt?.toMillis?.() ?? 0;
   const shouldRefresh = expiresMs === 0 || expiresMs < Date.now() + 5 * 60 * 1000;
+
+  console.log(`[QStash ensureFreshToken] platform=${account.platform}, expiresMs=${expiresMs}, shouldRefresh=${shouldRefresh}, hasRefreshToken=${!!account.refreshToken}`);
+
   if (!shouldRefresh) return account;
-  if (!account.refreshToken) return account;
+  if (!account.refreshToken) {
+    console.warn(`[QStash ensureFreshToken] ${account.platform}: no refresh token`);
+    return account;
+  }
 
   const adapter = getPlatformAdapter(account.platform);
   const result = await adapter.refreshToken(account);
-  if (!result) return account;
+  if (!result) {
+    console.error(`[QStash ensureFreshToken] ${account.platform}: refresh failed`);
+    return account;
+  }
 
+  console.log(`[QStash ensureFreshToken] ${account.platform}: token refreshed`);
   const encrypted = encryptToken(result.accessToken);
   await socialCollections.socialAccounts().doc(accountDocId).update({
     accessTokenEncrypted: encrypted.encrypted,

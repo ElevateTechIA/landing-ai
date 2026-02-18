@@ -18,18 +18,25 @@ async function ensureFreshToken(
   account: DecryptedSocialAccount,
   tokenExpiresAt: FirebaseFirestore.Timestamp | null
 ): Promise<DecryptedSocialAccount> {
-  // Check if token is expired, expiring within 5 minutes, or has no known expiry
   const expiresMs = tokenExpiresAt?.toMillis?.() ?? 0;
   const shouldRefresh = expiresMs === 0 || expiresMs < Date.now() + 5 * 60 * 1000;
 
+  console.log(`[ensureFreshToken] platform=${account.platform}, expiresMs=${expiresMs}, shouldRefresh=${shouldRefresh}, hasRefreshToken=${!!account.refreshToken}`);
+
   if (!shouldRefresh) return account;
-  if (!account.refreshToken) return account;
+  if (!account.refreshToken) {
+    console.warn(`[ensureFreshToken] ${account.platform}: token needs refresh but no refresh token available`);
+    return account;
+  }
 
   const adapter = getPlatformAdapter(account.platform);
   const result = await adapter.refreshToken(account);
-  if (!result) return account;
+  if (!result) {
+    console.error(`[ensureFreshToken] ${account.platform}: refresh failed, proceeding with old token`);
+    return account;
+  }
 
-  // Encrypt and save the new token
+  console.log(`[ensureFreshToken] ${account.platform}: token refreshed successfully`);
   const encrypted = encryptToken(result.accessToken);
   await socialCollections.socialAccounts().doc(accountDocId).update({
     accessTokenEncrypted: encrypted.encrypted,

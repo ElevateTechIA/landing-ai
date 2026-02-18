@@ -171,15 +171,25 @@ export class YouTubeAdapter implements PlatformAdapter {
   async refreshToken(
     account: DecryptedSocialAccount
   ): Promise<TokenRefreshResult | null> {
-    if (!account.refreshToken) return null;
+    if (!account.refreshToken) {
+      console.error("[YouTube] refreshToken: no refresh token available");
+      return null;
+    }
 
     try {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      if (!clientId || !clientSecret) {
+        console.error("[YouTube] refreshToken: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set");
+        return null;
+      }
+
       const response = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          client_id: process.env.GOOGLE_CLIENT_ID!,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+          client_id: clientId,
+          client_secret: clientSecret,
           refresh_token: account.refreshToken,
           grant_type: "refresh_token",
         }),
@@ -187,13 +197,18 @@ export class YouTubeAdapter implements PlatformAdapter {
 
       const data = await response.json();
 
-      if (data.error) return null;
+      if (data.error) {
+        console.error("[YouTube] refreshToken failed:", data.error, data.error_description);
+        return null;
+      }
 
+      console.log("[YouTube] Token refreshed successfully, expires in", data.expires_in, "seconds");
       return {
         accessToken: data.access_token,
         expiresAt: new Date(Date.now() + data.expires_in * 1000),
       };
-    } catch {
+    } catch (err) {
+      console.error("[YouTube] refreshToken exception:", err);
       return null;
     }
   }
