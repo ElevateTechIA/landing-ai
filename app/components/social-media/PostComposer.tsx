@@ -114,7 +114,7 @@ export default function PostComposer() {
           return;
         }
 
-        const { uploadUrl, readUrl } = await presignRes.json();
+        const { uploadUrl, readUrl, filePath } = await presignRes.json();
 
         // Step B: Upload file directly to GCS (no Vercel size limit)
         const putRes = await fetch(uploadUrl, {
@@ -131,6 +131,13 @@ export default function PostComposer() {
           setLoading(false);
           return;
         }
+
+        // Step C: Make file publicly accessible
+        await fetch("/api/social-media/upload", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath }),
+        });
 
         mediaUrls.push(readUrl);
         mediaTypes.push(file.type.startsWith("video/") ? "video" : "image");
@@ -250,7 +257,7 @@ export default function PostComposer() {
 
         {/* Actions bar */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
-          <label className="cursor-pointer text-gray-500 hover:text-indigo-600 transition-colors">
+          <label className="cursor-pointer text-gray-500 hover:text-blue-600 transition-colors">
             <ImageIcon className="w-5 h-5" />
             <input
               type="file"
@@ -273,7 +280,7 @@ export default function PostComposer() {
           {hashtags.map((tag) => (
             <span
               key={tag}
-              className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-sm flex items-center gap-1"
+              className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm flex items-center gap-1"
             >
               #{tag}
               <button onClick={() => handleRemoveHashtag(tag)}>
@@ -288,7 +295,7 @@ export default function PostComposer() {
           onChange={(e) => setHashtagInput(e.target.value)}
           onKeyDown={handleAddHashtag}
           placeholder={t("socialMedia.compose.hashtagPlaceholder")}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm text-gray-900 placeholder-gray-400"
         />
       </div>
 
@@ -305,7 +312,7 @@ export default function PostComposer() {
             type="checkbox"
             checked={isScheduling}
             onChange={(e) => setIsScheduling(e.target.checked)}
-            className="w-4 h-4 text-indigo-600 rounded"
+            className="w-4 h-4 text-blue-600 rounded"
           />
           <Clock className="w-5 h-5 text-gray-500" />
           <span className="text-sm font-medium text-gray-700">
@@ -323,7 +330,7 @@ export default function PostComposer() {
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
               min={new Date().toISOString().slice(0, 16)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm text-gray-900"
             />
           </div>
         )}
@@ -363,7 +370,7 @@ export default function PostComposer() {
           (!text.trim() && mediaFiles.length === 0) ||
           selectedPlatforms.length === 0
         }
-        className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin" />

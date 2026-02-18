@@ -26,7 +26,7 @@ async function ensureCors(bucket: ReturnType<typeof getStorageBucket>) {
   try {
     await bucket.setCorsConfiguration([
       {
-        origin: ["https://landing-ai-alpha-five.vercel.app", "http://localhost:3001"],
+        origin: ["https://landing-ai-alpha-five.vercel.app", "http://localhost:3000", "http://localhost:3001"],
         method: ["PUT", "GET"],
         responseHeader: ["Content-Type"],
         maxAgeSeconds: 3600,
@@ -70,16 +70,38 @@ export async function POST(request: NextRequest) {
       contentType,
     });
 
-    // Signed URL for reading (GET) - valid for 7 days
-    const [readUrl] = await gcsFile.getSignedUrl({
-      version: "v4",
-      action: "read",
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-    });
+    // Public URL (permanent, no expiry)
+    const bucketName = bucket.name;
+    const readUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
 
     return NextResponse.json({ uploadUrl, readUrl, filePath });
   } catch (error) {
     console.error("Presign error:", error);
     return NextResponse.json({ error: "Failed to generate upload URL" }, { status: 500 });
+  }
+}
+
+// PATCH: Make uploaded file public (called after client finishes uploading)
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { filePath } = await request.json();
+
+    if (!filePath || !filePath.startsWith(`social-media/${user.uid}/`)) {
+      return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
+    }
+
+    const bucket = getStorageBucket();
+    const gcsFile = bucket.file(filePath);
+    await gcsFile.makePublic();
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Make public error:", error);
+    return NextResponse.json({ error: "Failed to make file public" }, { status: 500 });
   }
 }

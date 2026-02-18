@@ -31,7 +31,7 @@ const platformColors: Record<string, string> = {
 
 type ScheduledPost = {
   id: string;
-  content: { text: string; mediaUrls: string[]; hashtags: string[] };
+  content: { text: string; mediaUrls: string[]; mediaTypes: string[]; hashtags: string[] };
   targetPlatforms: string[];
   status: string;
   scheduledAt: string | null;
@@ -57,7 +57,7 @@ export default function SchedulePage() {
           {t("socialMedia.sidebar.schedule")}
         </h1>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
         </div>
       </div>
     );
@@ -75,7 +75,7 @@ export default function SchedulePage() {
           <p className="text-gray-500 mb-4">{t("socialMedia.schedule.empty")}</p>
           <Link
             href="/social-media/compose"
-            className="text-indigo-600 hover:text-indigo-700 font-medium"
+            className="text-blue-600 hover:text-blue-700 font-medium"
           >
             {t("socialMedia.compose.title")}
           </Link>
@@ -88,17 +88,21 @@ export default function SchedulePage() {
               className="bg-white rounded-xl p-5 shadow-sm border border-gray-100"
             >
               <div className="flex items-start gap-4">
-                {post.content.mediaUrls?.[0] && (
-                  <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={post.content.mediaUrls[0]}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                {!post.content.mediaUrls?.[0] && (
+                {post.content.mediaUrls?.[0] ? (
+                  post.content.mediaTypes?.[0] === "video" ? (
+                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-900 flex items-center justify-center relative">
+                      <video src={post.content.mediaUrls[0]} className="w-full h-full object-cover" muted preload="metadata" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Video className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={post.content.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )
+                ) : (
                   <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
                     <ImageIcon className="w-6 h-6 text-gray-300" />
                   </div>

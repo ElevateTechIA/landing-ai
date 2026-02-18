@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/app/context/LanguageContext";
-import { getConnectedAccounts } from "@/actions/social-media/account.actions";
+import { getConnectedAccounts, disconnectAccount } from "@/actions/social-media/account.actions";
 import type { PlatformId } from "@/lib/social-media/platforms/types";
 import {
   Facebook,
@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Clock,
   Loader2,
+  Unlink,
 } from "lucide-react";
 
 const platformConfigs: {
@@ -59,6 +60,7 @@ export default function AccountsList() {
   const { t } = useLanguage();
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
   useEffect(() => {
     getConnectedAccounts()
@@ -66,6 +68,16 @@ export default function AccountsList() {
       .catch(() => setAccounts([]))
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleDisconnect(accountId: string) {
+    if (!confirm(t("socialMedia.accounts.confirmDisconnect"))) return;
+    setDisconnecting(accountId);
+    const result = await disconnectAccount(accountId);
+    if (result.success) {
+      setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+    }
+    setDisconnecting(null);
+  }
 
   function handleConnect(platformId: PlatformId) {
     const baseUrl = window.location.origin;
@@ -81,7 +93,7 @@ export default function AccountsList() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -131,17 +143,30 @@ export default function AccountsList() {
                     {t(`socialMedia.accounts.${account.status}`)}
                   </span>
                 </div>
-                <button
-                  onClick={() => handleConnect(id)}
-                  className="w-full text-sm text-indigo-600 hover:text-indigo-700 py-2 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
-                >
-                  {t("socialMedia.accounts.connect")} again
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleConnect(id)}
+                    className="flex-1 text-sm text-blue-600 hover:text-blue-700 py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    {t("socialMedia.accounts.reconnect")}
+                  </button>
+                  <button
+                    onClick={() => handleDisconnect(account.id)}
+                    disabled={disconnecting === account.id}
+                    className="text-sm text-red-500 hover:text-red-600 py-2 px-3 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {disconnecting === account.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Unlink className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               <button
                 onClick={() => handleConnect(id)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-gray-300 text-gray-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors text-sm font-medium"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-600 transition-colors text-sm font-medium"
               >
                 <Plus className="w-4 h-4" />
                 {t("socialMedia.accounts.connect")}

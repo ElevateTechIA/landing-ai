@@ -44,7 +44,7 @@ const statusConfig: Record<string, { icon: React.ElementType; color: string; bg:
 
 type Post = {
   id: string;
-  content: { text: string; mediaUrls: string[]; hashtags: string[] };
+  content: { text: string; mediaUrls: string[]; mediaTypes: string[]; hashtags: string[] };
   targetPlatforms: string[];
   status: string;
   scheduledAt: string | null;
@@ -73,7 +73,7 @@ export default function PostsPage() {
           </h1>
         </div>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
         </div>
       </div>
     );
@@ -87,7 +87,7 @@ export default function PostsPage() {
         </h1>
         <Link
           href="/social-media/compose"
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <PenSquare className="w-4 h-4" />
           {t("socialMedia.compose.title")}
@@ -108,18 +108,32 @@ export default function PostsPage() {
               <Link
                 key={post.id}
                 href={`/social-media/posts/${post.id}`}
-                className="block bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-indigo-200 transition-colors"
+                className="block bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-blue-200 transition-colors"
               >
                 <div className="flex items-start gap-4">
                   {post.content.mediaUrls?.[0] ? (
-                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={post.content.mediaUrls[0]}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    post.content.mediaTypes?.[0] === "video" ? (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-900 flex items-center justify-center relative">
+                        <video
+                          src={post.content.mediaUrls[0]}
+                          className="w-full h-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Video className="w-5 h-5 text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={post.content.mediaUrls[0]}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )
                   ) : (
                     <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
                       <ImageIcon className="w-6 h-6 text-gray-300" />

@@ -96,6 +96,40 @@ export async function getSessionUser() {
   }
 }
 
+export async function getUserSettings() {
+  const user = await getSessionUser();
+  if (!user) return null;
+  return user.settings;
+}
+
+export async function updateUserSettings(settings: {
+  timezone?: string;
+  defaultHashtags?: string[];
+}) {
+  const user = await getSessionUser();
+  if (!user) return { success: false, error: "unauthorized" as const };
+
+  try {
+    const userRef = db.collection("socialMediaUsers").doc(user.uid);
+    const updates: Record<string, unknown> = {
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (settings.timezone) {
+      updates["settings.timezone"] = settings.timezone;
+    }
+    if (settings.defaultHashtags) {
+      updates["settings.defaultHashtags"] = settings.defaultHashtags;
+    }
+
+    await userRef.update(updates);
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating settings:", error);
+    return { success: false, error: "update_failed" as const };
+  }
+}
+
 export async function logout() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);

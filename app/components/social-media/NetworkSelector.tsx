@@ -62,7 +62,7 @@ export default function NetworkSelector({
               onClick={() => togglePlatform(id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 transition-all text-sm font-medium ${
                 isSelected
-                  ? `border-indigo-500 ${bgColor} ${color}`
+                  ? `border-blue-500 ${bgColor} ${color}`
                   : "border-gray-200 text-gray-500 hover:border-gray-300"
               }`}
             >

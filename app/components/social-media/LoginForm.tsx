@@ -6,7 +6,8 @@ import { auth } from "@/lib/firebase-client";
 import { createSessionCookie } from "@/actions/social-media/auth.actions";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/app/context/LanguageContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -41,7 +42,7 @@ export default function LoginForm() {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-indigo-600 mb-2">SocialPost</h1>
+        <h1 className="text-3xl font-bold text-blue-600 mb-2">SocialPost</h1>
         <p className="text-gray-500">{t("socialMedia.auth.loginSubtitle")}</p>
       </div>
 
@@ -68,6 +69,14 @@ export default function LoginForm() {
         )}
         {t("socialMedia.auth.signInWithGoogle")}
       </button>
+
+      <Link
+        href="/"
+        className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        {t("socialMedia.sidebar.home")}
+      </Link>
     </div>
   );
 }

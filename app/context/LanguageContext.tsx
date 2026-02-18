@@ -295,6 +295,7 @@ const translations = {
         accounts: 'Accounts',
         whatsapp: 'WhatsApp',
         settings: 'Settings',
+        home: 'Main Page',
       },
       auth: {
         loginSubtitle: 'Sign in to manage your social media accounts',
@@ -312,6 +313,7 @@ const translations = {
           published: 'Published',
           failed: 'Failed',
         },
+        noAccounts: 'No accounts connected yet.',
       },
       compose: {
         title: 'Compose Post',
@@ -331,6 +333,9 @@ const translations = {
         title: 'Posts',
         empty: 'No posts yet. Create your first post!',
         viewDetail: 'Post Detail',
+        notFound: 'Post not found.',
+        delete: 'Delete',
+        confirmDelete: 'Are you sure you want to delete this post?',
       },
       schedule: {
         empty: 'No scheduled posts. Schedule one from Compose!',
@@ -338,7 +343,9 @@ const translations = {
       accounts: {
         title: 'Connected Accounts',
         connect: 'Connect',
+        reconnect: 'Reconnect',
         disconnect: 'Disconnect',
+        confirmDisconnect: 'Are you sure you want to disconnect this account?',
         platforms: {
           facebook: 'Facebook',
           instagram: 'Instagram',
@@ -601,6 +608,7 @@ const translations = {
         accounts: 'Cuentas',
         whatsapp: 'WhatsApp',
         settings: 'Configuración',
+        home: 'Página Principal',
       },
       auth: {
         loginSubtitle: 'Inicia sesión para gestionar tus redes sociales',
@@ -618,6 +626,7 @@ const translations = {
           published: 'Publicados',
           failed: 'Fallidos',
         },
+        noAccounts: 'No hay cuentas conectadas aún.',
       },
       compose: {
         title: 'Componer Post',
@@ -637,6 +646,9 @@ const translations = {
         title: 'Publicaciones',
         empty: '¡Aún no hay publicaciones. Crea tu primer post!',
         viewDetail: 'Detalle del Post',
+        notFound: 'Post no encontrado.',
+        delete: 'Eliminar',
+        confirmDelete: '¿Estás seguro de que quieres eliminar este post?',
       },
       schedule: {
         empty: '¡No hay posts programados. Programa uno desde Componer!',
@@ -644,7 +656,9 @@ const translations = {
       accounts: {
         title: 'Cuentas Conectadas',
         connect: 'Conectar',
+        reconnect: 'Reconectar',
         disconnect: 'Desconectar',
+        confirmDisconnect: '¿Estás seguro de que quieres desconectar esta cuenta?',
         platforms: {
           facebook: 'Facebook',
           instagram: 'Instagram',

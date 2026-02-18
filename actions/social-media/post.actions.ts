@@ -304,6 +304,29 @@ export async function publishPostNow(postId: string) {
   }
 }
 
+export async function getDashboardStats() {
+  const user = await getSessionUser();
+  if (!user) return { total: 0, scheduled: 0, published: 0, failed: 0 };
+
+  const snap = await socialCollections
+    .posts()
+    .where("userId", "==", user.uid)
+    .get();
+
+  let scheduled = 0;
+  let published = 0;
+  let failed = 0;
+
+  for (const doc of snap.docs) {
+    const status = doc.data().status;
+    if (status === "scheduled") scheduled++;
+    else if (status === "completed") published++;
+    else if (status === "failed") failed++;
+  }
+
+  return { total: snap.size, scheduled, published, failed };
+}
+
 export async function getUserPosts(
   statusFilter?: string,
   limit = 20
