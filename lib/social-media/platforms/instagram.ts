@@ -51,7 +51,12 @@ export class InstagramAdapter implements PlatformAdapter {
         .filter(Boolean)
         .join("\n\n");
 
-      // Step 1: Create media container
+      // Carousel post (multiple media items)
+      if (payload.media.length > 1) {
+        return await this.publishCarousel(igAccountId, accessToken, caption, payload.media);
+      }
+
+      // Single media post
       const mediaItem = payload.media[0];
       const containerParams: Record<string, string> = {
         caption,
@@ -90,12 +95,12 @@ export class InstagramAdapter implements PlatformAdapter {
 
       const containerId = containerData.id;
 
-      // Step 2: For videos, wait for processing
+      // For videos, wait for processing
       if (mediaItem.type === "video") {
         await this.waitForProcessing(igAccountId, containerId, accessToken);
       }
 
-      // Step 3: Publish the container
+      // Publish the container
       const publishResponse = await fetch(
         `https://graph.facebook.com/v21.0/${igAccountId}/media_publish`,
         {
@@ -137,6 +142,118 @@ export class InstagramAdapter implements PlatformAdapter {
         },
       };
     }
+  }
+
+  private async publishCarousel(
+    igAccountId: string,
+    accessToken: string,
+    caption: string,
+    media: PublishPayload["media"]
+  ): Promise<PublishResult> {
+    // Step 1: Create individual containers for each media item (no caption on children)
+    const childIds: string[] = [];
+    for (const item of media) {
+      const params: Record<string, string> = {
+        is_carousel_item: "true",
+        access_token: accessToken,
+      };
+
+      if (item.type === "image") {
+        params.image_url = item.url;
+      } else {
+        params.media_type = "VIDEO";
+        params.video_url = item.url;
+      }
+
+      const res = await fetch(
+        `https://graph.facebook.com/v21.0/${igAccountId}/media`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        }
+      );
+      const data = await res.json();
+
+      if (data.error) {
+        return {
+          success: false,
+          error: {
+            code: data.error.code?.toString() ?? "CAROUSEL_ITEM_ERROR",
+            message: data.error.message ?? "Failed to create carousel item",
+            retryable: data.error.is_transient ?? false,
+            rawResponse: JSON.stringify(data.error),
+          },
+        };
+      }
+
+      // Wait for video items to finish processing
+      if (item.type === "video") {
+        await this.waitForProcessing(igAccountId, data.id, accessToken);
+      }
+
+      childIds.push(data.id);
+    }
+
+    // Step 2: Create carousel container
+    const carouselRes = await fetch(
+      `https://graph.facebook.com/v21.0/${igAccountId}/media`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          media_type: "CAROUSEL",
+          caption,
+          children: childIds.join(","),
+          access_token: accessToken,
+        }),
+      }
+    );
+    const carouselData = await carouselRes.json();
+
+    if (carouselData.error) {
+      return {
+        success: false,
+        error: {
+          code: carouselData.error.code?.toString() ?? "CAROUSEL_ERROR",
+          message: carouselData.error.message ?? "Failed to create carousel",
+          retryable: carouselData.error.is_transient ?? false,
+          rawResponse: JSON.stringify(carouselData.error),
+        },
+      };
+    }
+
+    // Step 3: Publish the carousel
+    const publishRes = await fetch(
+      `https://graph.facebook.com/v21.0/${igAccountId}/media_publish`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creation_id: carouselData.id,
+          access_token: accessToken,
+        }),
+      }
+    );
+    const publishData = await publishRes.json();
+
+    if (publishData.error) {
+      return {
+        success: false,
+        error: {
+          code: publishData.error.code?.toString() ?? "PUBLISH_ERROR",
+          message: publishData.error.message ?? "Failed to publish carousel",
+          retryable: publishData.error.is_transient ?? false,
+          rawResponse: JSON.stringify(publishData.error),
+        },
+      };
+    }
+
+    return {
+      success: true,
+      platformPostId: publishData.id,
+      platformPostUrl: `https://www.instagram.com/p/${publishData.id}`,
+    };
   }
 
   private async waitForProcessing(
