@@ -204,7 +204,7 @@ export class InstagramAdapter implements PlatformAdapter {
         body: JSON.stringify({
           media_type: "CAROUSEL",
           caption,
-          children: childIds.join(","),
+          children: childIds,
           access_token: accessToken,
         }),
       }
