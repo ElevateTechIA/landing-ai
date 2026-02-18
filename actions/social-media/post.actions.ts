@@ -263,23 +263,19 @@ export async function getUserPosts(
   const user = await getSessionUser();
   if (!user) return [];
 
-  let query = socialCollections
+  const query = socialCollections
     .posts()
     .where("userId", "==", user.uid)
     .orderBy("createdAt", "desc")
-    .limit(limit);
-
-  if (statusFilter) {
-    query = socialCollections
-      .posts()
-      .where("userId", "==", user.uid)
-      .where("status", "==", statusFilter)
-      .orderBy("createdAt", "desc")
-      .limit(limit);
-  }
+    .limit(statusFilter ? limit * 3 : limit);
 
   const snap = await query.get();
-  return snap.docs.map((doc) => ({
+  let docs = snap.docs;
+  if (statusFilter) {
+    docs = docs.filter((doc) => doc.data().status === statusFilter).slice(0, limit);
+  }
+
+  return docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate?.()?.toISOString?.() ?? null,
