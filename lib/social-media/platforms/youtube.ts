@@ -44,7 +44,7 @@ export class YouTubeAdapter implements PlatformAdapter {
       ]
         .filter(Boolean)
         .join("\n\n");
-      const privacy = (overrides.privacy as string) ?? "private";
+      const privacy = (overrides.privacy as string) ?? "public";
 
       const videoMedia = payload.media.find((m) => m.type === "video");
       if (!videoMedia) {
