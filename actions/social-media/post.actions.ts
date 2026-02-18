@@ -70,12 +70,11 @@ export async function createPost(data: {
       updatedAt: FieldValue.serverTimestamp(),
     } as never);
 
-    // If scheduled, create QStash jobs
+    // If scheduled, create QStash job
     if (scheduledAtTs && data.scheduledAt) {
-      const messageIds = await schedulePost(
+      const messageId = await schedulePost(
         postRef.id,
-        new Date(data.scheduledAt),
-        data.targetPlatforms
+        new Date(data.scheduledAt)
       );
 
       await db.collection("scheduledJobs").add({
@@ -83,7 +82,7 @@ export async function createPost(data: {
         userId: user.uid,
         scheduledAt: scheduledAtTs,
         status: "pending",
-        qstashMessageId: messageIds[0] ?? null,
+        qstashMessageId: messageId || null,
         attempts: 0,
         maxAttempts: 3,
         lastAttemptAt: null,
