@@ -128,7 +128,7 @@ export default function PostComposer() {
         mediaTypes,
         targetPlatforms: selectedPlatforms,
         targetAccountIds: targetAccounts.map((a) => a.id),
-        scheduledAt: isScheduling ? scheduledDate : undefined,
+        scheduledAt: isScheduling ? new Date(scheduledDate).toISOString() : undefined,
       });
 
       if (!result.success) {
