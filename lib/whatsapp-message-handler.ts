@@ -126,6 +126,45 @@ export async function handleIncomingWhatsAppMessage(
 
   const isSlotSelection = incoming.text.startsWith('SLOT_SELECTED:');
 
+  // Check if user is asking for social links
+  const socialLinkPattern = /social\s*link/i;
+  if (socialLinkPattern.test(incoming.text)) {
+    console.log('[WA_HANDLER] Social link request detected from:', incoming.from);
+
+    const socialLinkReply = detectedLanguage === 'es'
+      ? 'Aqui tienes el enlace a nuestras redes sociales: https://elevate-social-links.vercel.app/'
+      : 'Here is our social links page: https://elevate-social-links.vercel.app/';
+
+    const socialUserMsg: WhatsAppMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: incoming.text,
+      timestamp: new Date(),
+      messageId: incoming.messageId,
+    };
+    const assistantMsg: WhatsAppMessage = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: socialLinkReply,
+      timestamp: new Date(),
+    };
+    conversation.messages.push(socialUserMsg);
+    conversation.messages.push(assistantMsg);
+    conversation.lastMessageAt = new Date();
+    conversation.language = detectedLanguage;
+    await saveWhatsAppConversation(conversation);
+
+    await sendTypingIndicator(phoneConfig, incoming.from);
+    await simulateHumanDelay(socialLinkReply.length, 1, 2);
+
+    const sendResult = await sendWhatsAppCloudMessage(phoneConfig, incoming.from, socialLinkReply);
+    if (sendResult.success) {
+      assistantMsg.messageId = sendResult.messageId;
+      await saveWhatsAppConversation(conversation);
+    }
+    return;
+  }
+
   if (!conversation.status || conversation.status === 'resolved') {
     conversation.status = 'open';
   }
