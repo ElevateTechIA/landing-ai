@@ -328,6 +328,8 @@ const translations = {
         publishSuccess: 'Published successfully!',
         scheduleSuccess: 'Post scheduled successfully!',
         noAccountsError: 'No active accounts found for selected platforms. Connect them first.',
+        whatsappButton: 'Add WhatsApp button',
+        whatsappButtonDesc: 'People can send you a message on WhatsApp directly from the post',
       },
       posts: {
         title: 'Posts',
@@ -641,6 +643,8 @@ const translations = {
         publishSuccess: '¡Publicado exitosamente!',
         scheduleSuccess: '¡Post programado exitosamente!',
         noAccountsError: 'No se encontraron cuentas activas para las plataformas seleccionadas. Conéctalas primero.',
+        whatsappButton: 'Agregar botón de WhatsApp',
+        whatsappButtonDesc: 'Las personas pueden enviarte un mensaje por WhatsApp directamente desde el post',
       },
       posts: {
         title: 'Publicaciones',

@@ -11,6 +11,7 @@ import {
   X,
   CheckCircle,
   AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 import NetworkSelector from "./NetworkSelector";
 import { getConnectedAccounts } from "@/actions/social-media/account.actions";
@@ -27,6 +28,7 @@ export default function PostComposer() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [whatsappCTA, setWhatsappCTA] = useState(false);
   const [publishResult, setPublishResult] = useState<{
     type: "success" | "error" | "partial";
     message: string;
@@ -144,6 +146,11 @@ export default function PostComposer() {
       }
 
       // 3. Create post in Firestore
+      const platformOverrides: Record<string, Record<string, string>> = {};
+      if (whatsappCTA && selectedPlatforms.includes("facebook")) {
+        platformOverrides.facebook = { whatsappCTA: "true" };
+      }
+
       const result = await createPost({
         text,
         hashtags,
@@ -152,6 +159,7 @@ export default function PostComposer() {
         targetPlatforms: selectedPlatforms,
         targetAccountIds: targetAccounts.map((a) => a.id),
         scheduledAt: isScheduling ? new Date(scheduledDate).toISOString() : undefined,
+        platformOverrides: Object.keys(platformOverrides).length > 0 ? platformOverrides : undefined,
       });
 
       if (!result.success) {
@@ -199,6 +207,7 @@ export default function PostComposer() {
       setText("");
       setHashtags([]);
       setSelectedPlatforms([]);
+      setWhatsappCTA(false);
       setMediaFiles([]);
       setMediaPreviews([]);
       previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -304,6 +313,29 @@ export default function PostComposer() {
         selected={selectedPlatforms}
         onChange={setSelectedPlatforms}
       />
+
+      {/* WhatsApp CTA button option - shown when Facebook is selected */}
+      {selectedPlatforms.includes("facebook") && (
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={whatsappCTA}
+              onChange={(e) => setWhatsappCTA(e.target.checked)}
+              className="w-4 h-4 text-green-600 rounded"
+            />
+            <MessageCircle className="w-5 h-5 text-green-500" />
+            <div>
+              <span className="text-sm font-medium text-gray-700">
+                {t("socialMedia.compose.whatsappButton")}
+              </span>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {t("socialMedia.compose.whatsappButtonDesc")}
+              </p>
+            </div>
+          </label>
+        </div>
+      )}
 
       {/* Schedule option */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">

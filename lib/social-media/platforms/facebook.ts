@@ -6,7 +6,6 @@ import type {
   DecryptedSocialAccount,
   TokenRefreshResult,
 } from "@/lib/social-media/platforms/types";
-
 export class FacebookAdapter implements PlatformAdapter {
   readonly platformId = "facebook" as const;
   readonly displayName = "Facebook";
@@ -32,6 +31,34 @@ export class FacebookAdapter implements PlatformAdapter {
     return { valid: errors.length === 0, errors };
   }
 
+  private async getWhatsAppCTA(
+    pageId: string,
+    pageAccessToken: string,
+    payload: PublishPayload
+  ): Promise<{ type: string; value: { link: string } } | null> {
+    const overrides = payload.platformOverrides as Record<string, string> | undefined;
+    if (overrides?.whatsappCTA !== "true") return null;
+
+    // Fetch the WhatsApp number linked to this Facebook page in Meta
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v21.0/${pageId}?fields=whatsapp_number&access_token=${pageAccessToken}`
+      );
+      const data = await res.json();
+      if (data.whatsapp_number) {
+        const phone = data.whatsapp_number.replace(/[^\d]/g, "");
+        return {
+          type: "WHATSAPP_MESSAGE",
+          value: { link: `https://wa.me/${phone}` },
+        };
+      }
+    } catch {
+      // If we can't fetch, skip the CTA
+    }
+
+    return null;
+  }
+
   async publish(
     account: DecryptedSocialAccount,
     payload: PublishPayload
@@ -39,6 +66,7 @@ export class FacebookAdapter implements PlatformAdapter {
     try {
       const pageId = account.metadata.pageId as string;
       const pageAccessToken = account.accessToken;
+      const whatsappCTA = await this.getWhatsAppCTA(pageId, pageAccessToken, payload);
 
       const fullText = [
         payload.text,
@@ -88,16 +116,21 @@ export class FacebookAdapter implements PlatformAdapter {
           attachedMedia[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id });
         });
 
+        const feedParams: Record<string, string> = {
+          message: fullText,
+          access_token: pageAccessToken,
+          ...attachedMedia,
+        };
+        if (whatsappCTA) {
+          feedParams.call_to_action = JSON.stringify(whatsappCTA);
+        }
+
         const feedRes = await fetch(
           `https://graph.facebook.com/v21.0/${pageId}/feed`,
           {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              message: fullText,
-              access_token: pageAccessToken,
-              ...attachedMedia,
-            }),
+            body: new URLSearchParams(feedParams),
           }
         );
         const feedData = await feedRes.json();
@@ -123,16 +156,21 @@ export class FacebookAdapter implements PlatformAdapter {
 
       // Case 2: Single image
       if (images.length === 1) {
+        const photoBody: Record<string, unknown> = {
+          url: images[0].url,
+          message: fullText,
+          access_token: pageAccessToken,
+        };
+        if (whatsappCTA) {
+          photoBody.call_to_action = whatsappCTA;
+        }
+
         const response = await fetch(
           `https://graph.facebook.com/v21.0/${pageId}/photos`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              url: images[0].url,
-              message: fullText,
-              access_token: pageAccessToken,
-            }),
+            body: JSON.stringify(photoBody),
           }
         );
         const data = await response.json();
@@ -158,16 +196,21 @@ export class FacebookAdapter implements PlatformAdapter {
 
       // Case 3: Video
       if (videos.length > 0) {
+        const videoBody: Record<string, unknown> = {
+          file_url: videos[0].url,
+          description: fullText,
+          access_token: pageAccessToken,
+        };
+        if (whatsappCTA) {
+          videoBody.call_to_action = whatsappCTA;
+        }
+
         const response = await fetch(
           `https://graph.facebook.com/v21.0/${pageId}/videos`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              file_url: videos[0].url,
-              description: fullText,
-              access_token: pageAccessToken,
-            }),
+            body: JSON.stringify(videoBody),
           }
         );
         const data = await response.json();
@@ -192,15 +235,20 @@ export class FacebookAdapter implements PlatformAdapter {
       }
 
       // Case 4: Text only
+      const textBody: Record<string, unknown> = {
+        message: fullText,
+        access_token: pageAccessToken,
+      };
+      if (whatsappCTA) {
+        textBody.call_to_action = whatsappCTA;
+      }
+
       const response = await fetch(
         `https://graph.facebook.com/v21.0/${pageId}/feed`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: fullText,
-            access_token: pageAccessToken,
-          }),
+          body: JSON.stringify(textBody),
         }
       );
       const data = await response.json();
