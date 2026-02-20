@@ -37,7 +37,10 @@ export class FacebookAdapter implements PlatformAdapter {
     payload: PublishPayload
   ): Promise<{ type: string; value: { link: string } } | null> {
     const overrides = payload.platformOverrides as Record<string, string> | undefined;
-    if (overrides?.whatsappCTA !== "true") return null;
+    if (overrides?.whatsappCTA !== "true") {
+      console.log("[Facebook] WhatsApp CTA not enabled in overrides");
+      return null;
+    }
 
     // Fetch the WhatsApp number linked to this Facebook page in Meta
     try {
@@ -45,15 +48,21 @@ export class FacebookAdapter implements PlatformAdapter {
         `https://graph.facebook.com/v21.0/${pageId}?fields=whatsapp_number&access_token=${pageAccessToken}`
       );
       const data = await res.json();
+      console.log("[Facebook] Page WhatsApp number response:", data);
+
       if (data.whatsapp_number) {
         const phone = data.whatsapp_number.replace(/[^\d]/g, "");
-        return {
+        const cta = {
           type: "WHATSAPP_MESSAGE",
           value: { link: `https://wa.me/${phone}` },
         };
+        console.log("[Facebook] WhatsApp CTA created:", cta);
+        return cta;
+      } else {
+        console.warn("[Facebook] No WhatsApp number found on page. Link a WhatsApp number in Meta Business Suite.");
       }
-    } catch {
-      // If we can't fetch, skip the CTA
+    } catch (error) {
+      console.error("[Facebook] Error fetching WhatsApp number:", error);
     }
 
     return null;
@@ -203,8 +212,10 @@ export class FacebookAdapter implements PlatformAdapter {
         };
         if (whatsappCTA) {
           videoBody.call_to_action = whatsappCTA;
+          console.log("[Facebook] Adding WhatsApp CTA to video post:", JSON.stringify(whatsappCTA));
         }
 
+        console.log("[Facebook] Publishing video with body:", JSON.stringify({ ...videoBody, access_token: "***" }));
         const response = await fetch(
           `https://graph.facebook.com/v21.0/${pageId}/videos`,
           {
@@ -214,6 +225,7 @@ export class FacebookAdapter implements PlatformAdapter {
           }
         );
         const data = await response.json();
+        console.log("[Facebook] Video post response:", JSON.stringify(data));
 
         if (data.error) {
           return {
