@@ -116,6 +116,36 @@ export async function disconnectAccount(accountId: string) {
   }
 }
 
+export async function updateAccountWhatsApp(accountId: string, whatsappNumber: string) {
+  const user = await getSessionUser();
+  if (!user) return { success: false, error: "unauthorized" as const };
+
+  try {
+    const doc = await socialCollections.socialAccounts().doc(accountId).get();
+    if (!doc.exists) return { success: false, error: "not_found" as const };
+
+    const account = doc.data()!;
+    if (account.userId !== user.uid)
+      return { success: false, error: "unauthorized" as const };
+
+    if (account.platform !== "facebook")
+      return { success: false, error: "only_facebook" as const };
+
+    await socialCollections.socialAccounts().doc(accountId).update({
+      metadata: {
+        ...account.metadata,
+        whatsappNumber: whatsappNumber,
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    } as never);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating WhatsApp number:", error);
+    return { success: false, error: "update_failed" as const };
+  }
+}
+
 export async function refreshAccountToken(accountId: string) {
   const user = await getSessionUser();
   if (!user) return { success: false, error: "unauthorized" as const };

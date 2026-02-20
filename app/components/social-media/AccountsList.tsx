@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/app/context/LanguageContext";
-import { getConnectedAccounts, disconnectAccount } from "@/actions/social-media/account.actions";
+import { getConnectedAccounts, disconnectAccount, updateAccountWhatsApp } from "@/actions/social-media/account.actions";
 import type { PlatformId } from "@/lib/social-media/platforms/types";
 import {
   Facebook,
@@ -16,6 +16,8 @@ import {
   Clock,
   Loader2,
   Unlink,
+  Settings,
+  X,
 } from "lucide-react";
 
 const platformConfigs: {
@@ -61,6 +63,8 @@ export default function AccountsList() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [editingWhatsApp, setEditingWhatsApp] = useState<string | null>(null);
+  const [whatsappNumber, setWhatsappNumber] = useState("");
 
   useEffect(() => {
     getConnectedAccounts()
@@ -87,6 +91,26 @@ export default function AccountsList() {
       window.location.href = `${baseUrl}/api/social-media/auth/callback/tiktok?initiate=true`;
     } else if (platformId === "youtube") {
       window.location.href = `${baseUrl}/api/social-media/auth/callback/youtube?initiate=true`;
+    }
+  }
+
+  function handleOpenWhatsAppDialog(accountId: string, currentNumber?: string) {
+    setEditingWhatsApp(accountId);
+    setWhatsappNumber(currentNumber || "");
+  }
+
+  async function handleSaveWhatsApp() {
+    if (!editingWhatsApp) return;
+    const result = await updateAccountWhatsApp(editingWhatsApp, whatsappNumber);
+    if (result.success) {
+      alert("WhatsApp number updated successfully!");
+      setEditingWhatsApp(null);
+      setWhatsappNumber("");
+      // Refresh accounts list
+      const updatedAccounts = await getConnectedAccounts();
+      setAccounts(updatedAccounts as ConnectedAccount[]);
+    } else {
+      alert("Failed to update WhatsApp number");
     }
   }
 
@@ -144,6 +168,15 @@ export default function AccountsList() {
                   </span>
                 </div>
                 <div className="flex gap-2">
+                  {id === "facebook" && (
+                    <button
+                      onClick={() => handleOpenWhatsAppDialog(account.id)}
+                      className="text-sm text-green-600 hover:text-green-700 py-2 px-3 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                      title="Configure WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleConnect(id)}
                     className="flex-1 text-sm text-blue-600 hover:text-blue-700 py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
@@ -175,6 +208,57 @@ export default function AccountsList() {
           </div>
         );
       })}
+
+      {/* WhatsApp Configuration Dialog */}
+      {editingWhatsApp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Configure WhatsApp CTA Button
+              </h3>
+              <button
+                onClick={() => setEditingWhatsApp(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter your WhatsApp number to enable the WhatsApp CTA button on Facebook posts.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                WhatsApp Number
+              </label>
+              <input
+                type="text"
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                placeholder="+1234567890"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-gray-900"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Include country code (e.g., +13055425070)
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingWhatsApp(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveWhatsApp}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

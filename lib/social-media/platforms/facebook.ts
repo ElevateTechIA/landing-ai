@@ -34,7 +34,8 @@ export class FacebookAdapter implements PlatformAdapter {
   private async getWhatsAppCTA(
     pageId: string,
     pageAccessToken: string,
-    payload: PublishPayload
+    payload: PublishPayload,
+    accountMetadata: Record<string, unknown>
   ): Promise<{ type: string; value: { link: string } } | null> {
     const overrides = payload.platformOverrides as Record<string, string> | undefined;
     if (overrides?.whatsappCTA !== "true") {
@@ -42,30 +43,41 @@ export class FacebookAdapter implements PlatformAdapter {
       return null;
     }
 
-    // Fetch the WhatsApp number linked to this Facebook page in Meta
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/v21.0/${pageId}?fields=whatsapp_number&access_token=${pageAccessToken}`
-      );
-      const data = await res.json();
-      console.log("[Facebook] Page WhatsApp number response:", data);
+    let whatsappNumber: string | null = null;
 
-      if (data.whatsapp_number) {
-        const phone = data.whatsapp_number.replace(/[^\d]/g, "");
-        const cta = {
-          type: "WHATSAPP_MESSAGE",
-          value: { link: `https://wa.me/${phone}` },
-        };
-        console.log("[Facebook] WhatsApp CTA created:", cta);
-        return cta;
-      } else {
-        console.warn("[Facebook] No WhatsApp number found on page. Link a WhatsApp number in Meta Business Suite.");
-      }
-    } catch (error) {
-      console.error("[Facebook] Error fetching WhatsApp number:", error);
+    // Option 1: Check if WhatsApp number is stored in account metadata (manual config)
+    if (accountMetadata.whatsappNumber) {
+      whatsappNumber = accountMetadata.whatsappNumber as string;
+      console.log("[Facebook] Using WhatsApp number from account metadata:", whatsappNumber);
     }
 
-    return null;
+    // Option 2: Try to fetch from Facebook Graph API
+    if (!whatsappNumber) {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/v21.0/${pageId}?fields=whatsapp_number,phone&access_token=${pageAccessToken}`
+        );
+        const data = await res.json();
+        console.log("[Facebook] Page contact info response:", data);
+
+        whatsappNumber = data.whatsapp_number || data.phone || null;
+      } catch (error) {
+        console.error("[Facebook] Error fetching WhatsApp number:", error);
+      }
+    }
+
+    if (whatsappNumber) {
+      const phone = whatsappNumber.replace(/[^\d]/g, "");
+      const cta = {
+        type: "WHATSAPP_MESSAGE",
+        value: { link: `https://wa.me/${phone}` },
+      };
+      console.log("[Facebook] WhatsApp CTA created:", cta);
+      return cta;
+    } else {
+      console.warn("[Facebook] No WhatsApp number found. Add it to account metadata or link it in Meta Business Suite.");
+      return null;
+    }
   }
 
   async publish(
@@ -75,7 +87,7 @@ export class FacebookAdapter implements PlatformAdapter {
     try {
       const pageId = account.metadata.pageId as string;
       const pageAccessToken = account.accessToken;
-      const whatsappCTA = await this.getWhatsAppCTA(pageId, pageAccessToken, payload);
+      const whatsappCTA = await this.getWhatsAppCTA(pageId, pageAccessToken, payload, account.metadata);
 
       const fullText = [
         payload.text,
